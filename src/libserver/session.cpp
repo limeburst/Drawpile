@@ -18,6 +18,41 @@ extern "C" {
 #include <QNetworkRequest>
 #include <QTimer>
 
+namespace {
+
+QString messageToBinaryString(const net::Message &msg) {
+	QByteArray msgData;
+	if (!msg.serialize(msgData)) {
+		return QString("(serialization failed)");
+	}
+	
+	// Extract payload (skip 4-byte header: LENGTH(2) + TYPE(1) + USERID(1))
+	if (msgData.size() <= 4) {
+		return QString("payload=(empty)");
+	}
+	
+	QByteArray payload = msgData.mid(4); // Skip header
+	// Try to interpret as string if it contains printable characters
+	bool isPrintable = true;
+	for (int i = 0; i < payload.size() && i < 100; ++i) { // Check first 100 chars
+		char c = payload[i];
+		if (c != 0 && (c < 32 || c > 126)) {
+			isPrintable = false;
+			break;
+		}
+	}
+	
+	if (isPrintable) {
+		// For text payloads, show only the string content
+		return QString("payload='%1'").arg(QString::fromUtf8(payload));
+	} else {
+		// For binary payloads, show both hex data and indicate it's binary
+		return QString("data=%1 payload=(binary)").arg(QString::fromLatin1(msgData.toHex(' ')));
+	}
+}
+
+}
+
 namespace server {
 
 class Session::AdminChat {
@@ -1771,6 +1806,8 @@ void Session::killSession(const QString &message, bool terminate, bool quiet)
 
 void Session::directToAll(const net::Message &msg)
 {
+	QString binary = messageToBinaryString(msg);
+	qInfo("BROADCAST [%s] %s (len=%zu) %s", qPrintable(id()), qPrintable(msg.typeName()), msg.length(), qPrintable(binary));
 	for(Client *c : m_clients) {
 		c->sendDirectMessage(msg);
 	}

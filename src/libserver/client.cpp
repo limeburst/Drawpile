@@ -29,6 +29,37 @@ namespace {
 			QOverload<QAbstractSocket::SocketError>::of(&CLS::error)
 #	endif
 #endif
+
+QString messageToBinaryString(const net::Message &msg) {
+	QByteArray msgData;
+	if (!msg.serialize(msgData)) {
+		return QString("(serialization failed)");
+	}
+	
+	// Extract payload (skip 4-byte header: LENGTH(2) + TYPE(1) + USERID(1))
+	if (msgData.size() <= 4) {
+		return QString("payload=(empty)");
+	}
+	
+	QByteArray payload = msgData.mid(4); // Skip header
+	// Try to interpret as string if it contains printable characters
+	bool isPrintable = true;
+	for (int i = 0; i < payload.size() && i < 100; ++i) { // Check first 100 chars
+		char c = payload[i];
+		if (c != 0 && (c < 32 || c > 126)) {
+			isPrintable = false;
+			break;
+		}
+	}
+	
+	if (isPrintable) {
+		// For text payloads, show only the string content
+		return QString("payload='%1'").arg(QString::fromUtf8(payload));
+	} else {
+		// For binary payloads, show both hex data and indicate it's binary
+		return QString("data=%1 payload=(binary)").arg(QString::fromLatin1(msgData.toHex(' ')));
+	}
+}
 }
 
 namespace server {
@@ -833,6 +864,8 @@ QHostAddress Client::peerAddress() const
 void Client::sendDirectMessage(const net::Message &msg)
 {
 	if(!msg.isNull() && (!isAwaitingReset() || msg.isControl())) {
+		QString binary = messageToBinaryString(msg);
+		qInfo("SEND [%s:%d] %s (len=%zu) %s", qPrintable(username()), id(), qPrintable(msg.typeName()), msg.length(), qPrintable(binary));
 		d->msgqueue->send(msg);
 	}
 }
@@ -842,10 +875,18 @@ void Client::sendDirectMessages(const net::MessageList &msgs)
 	if(isAwaitingReset()) {
 		for(const net::Message &msg : msgs) {
 			if(!msg.isNull() && msg.isControl()) {
+				QString binary = messageToBinaryString(msg);
+		qInfo("SEND [%s:%d] %s (len=%zu) %s", qPrintable(username()), id(), qPrintable(msg.typeName()), msg.length(), qPrintable(binary));
 				d->msgqueue->send(msg);
 			}
 		}
 	} else {
+		for(const net::Message &msg : msgs) {
+			if(!msg.isNull()) {
+				QString binary = messageToBinaryString(msg);
+		qInfo("SEND [%s:%d] %s (len=%zu) %s", qPrintable(username()), id(), qPrintable(msg.typeName()), msg.length(), qPrintable(binary));
+			}
+		}
 		d->msgqueue->sendMultiple(msgs.size(), msgs.constData());
 	}
 }
@@ -857,6 +898,8 @@ bool Client::sendSystemChat(const QString &message, bool alert)
 	if(msg.isNull()) {
 		return false;
 	} else {
+		QString binary = messageToBinaryString(msg);
+		qInfo("SEND [%s:%d] %s (len=%zu) %s", qPrintable(username()), id(), qPrintable(msg.typeName()), msg.length(), qPrintable(binary));
 		d->msgqueue->send(msg);
 		return true;
 	}
@@ -869,6 +912,9 @@ void Client::receiveMessages()
 		if(msg.isNull()) {
 			continue;
 		}
+
+		QString binary = messageToBinaryString(msg);
+		qInfo("RECV [%s:%d] %s (len=%zu) %s", qPrintable(username()), id(), qPrintable(msg.typeName()), msg.length(), qPrintable(binary));
 
 		d->lastActive = QDateTime::currentMSecsSinceEpoch();
 		if(msg.type() >= DP_MESSAGE_TYPE_RANGE_START_COMMAND) {

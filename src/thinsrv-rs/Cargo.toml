@@ -1,0 +1,11 @@
+[package]
+name = "thinsrv-rs"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+
+[dependencies]
+serde_json = "1.0.142"
+sqlx = { version = "0.8.6", features = ["sqlite"] }
+tokio = { version = "1", features = ["full"] }
