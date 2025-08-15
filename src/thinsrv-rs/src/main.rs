@@ -1,7 +1,10 @@
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -169,15 +172,13 @@ impl DpMessageType {
     }
 }
 
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 struct DpMessage {
     length: u16,
     message_type: DpMessageType,
     user_id: u8,
     payload: Vec<u8>,
 }
-
 
 // Overall, the login process is:
 // 1. wait for server greeting
@@ -278,29 +279,63 @@ impl ServerReplyType {
     }
 }
 
-#[derive(Debug)]
-struct ServerCommand {
-    cmd: String,
-    args: Vec<Value>,
-    kwargs: HashMap<String, Value>,
+pub struct MsgJoin {
+    pub flags: u8,
+    pub name: String,
+}
+
+impl MsgJoin {
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        buffer.push(self.flags);
+        buffer.extend_from_slice(&(self.name.len() as u16).to_be_bytes());
+        buffer.extend_from_slice(self.name.as_bytes());
+        buffer
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ServerCommand {
+    pub cmd: String,
+    pub args: Vec<Value>,
+    pub kwargs: serde_json::Map<String, Value>,
 }
 
 impl ServerCommand {
-    fn from_payload(payload: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
-        let json_str = std::str::from_utf8(payload)?;
-        let value: Value = serde_json::from_str(json_str)?;
-        
-        if let Value::Object(obj) = value {
-            let cmd = obj.get("type").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let args = obj.get("args").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-            let kwargs = obj.iter()
-                .filter(|(k, _)| k.as_str() != "type" && k.as_str() != "args")
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            
-            Ok(ServerCommand { cmd, args, kwargs })
-        } else {
-            Err("Invalid command format".into())
+    pub fn from_payload(payload: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        let json_str = std::str::from_utf8(payload);
+
+        match json_str {
+            Ok(json_str) => {
+                let mut map: serde_json::Map<String, Value> = serde_json::from_str(json_str)?;
+
+                // Extract cmd and args, remove them from the map
+                let cmd = match map.remove("cmd") {
+                    Some(Value::String(s)) => s,
+                    Some(v) => return Err(format!("cmd is not a string: {:?}", v).into()),
+                    None => return Err("Missing 'cmd' field".into()),
+                };
+
+                let args = match map.remove("args") {
+                    Some(Value::Array(arr)) => arr,
+                    Some(Value::Null) | None => Vec::<Value>::new(),
+                    Some(v) => return Err(format!("args is not an array: {:?}", v).into()),
+                };
+
+                // The rest of the map is kwargs
+                let kwargs = map;
+
+                Ok(ServerCommand { cmd, args, kwargs })
+            }
+            Err(e) => {
+                println!("Invalid JSON: {}", e);
+                print!("Payload (hex): ");
+                for byte in payload {
+                    print!("{:02x}", byte);
+                }
+                println!();
+                return Err(format!("Invalid JSON: {}", e).into());
+            }
         }
     }
 }
@@ -324,11 +359,23 @@ impl ClientState {
     }
 }
 
+impl Debug for DpMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "DpMessage {{ length: {}, message_type: {:?}, user_id: {}, payload: {:?} }}",
+            self.length,
+            self.message_type,
+            self.user_id,
+            String::from_utf8(self.payload.clone())
+        )
+    }
+}
+
 impl DpMessage {
     fn new(message_type: DpMessageType, user_id: u8, payload: Vec<u8>) -> Self {
-        let length: u16 = 4 + payload.len() as u16;
         Self {
-            length,
+            length: payload.len() as u16,
             message_type,
             user_id,
             payload,
@@ -437,7 +484,12 @@ impl DpMessage {
         } else {
             Vec::new()
         };
-        Ok(Self { length, message_type, user_id, payload })
+        Ok(Self {
+            length,
+            message_type,
+            user_id,
+            payload,
+        })
     }
 }
 
@@ -477,7 +529,12 @@ fn create_error_message(code: &str, message: &str) -> DpMessage {
     )
 }
 
-fn create_login_ok_message(message: &str, flags: Vec<&str>, username: &str, guest: bool) -> DpMessage {
+fn create_login_ok_message(
+    message: &str,
+    flags: Vec<&str>,
+    username: &str,
+    guest: bool,
+) -> DpMessage {
     DpMessage::new(
         DpMessageType::ServerCommand,
         0,
@@ -511,9 +568,21 @@ fn create_session_list() -> DpMessage {
     )
 }
 
-async fn handle_client_connection(mut socket: tokio::net::TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+pub struct Session {
+    pub id: String,
+    pub history: SessionHistory,
+}
+
+pub struct SessionHistory {
+    size_in_bytes: usize,
+}
+
+async fn handle_client_connection(
+    mut socket: tokio::net::TcpStream,
+    sessions: Arc<Mutex<HashMap<String, Session>>>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut client_state = ClientState::new();
-    
+
     // Send initial greeting
     let greeting = create_login_greeting();
     socket.write_all(&greeting.serialize()).await?;
@@ -538,137 +607,240 @@ async fn handle_client_connection(mut socket: tokio::net::TcpStream) -> Result<(
             }
         };
 
-        println!("Received message: {:?}", message);
+        // if message.message_type == DpMessageType::Ping {
+        //     let user_id = message.user_id;
 
-        if message.message_type != DpMessageType::ServerCommand {
-            continue;
+        //     let pong = DpMessage::new(
+        //         DpMessageType::ServerCommand,
+        //         user_id,
+        //         vec![1]
+        //     );
+        //     socket.write_all(&pong.serialize()).await?;
+
+        //     println!("Sent pong to user {}", user_id);
+        //     continue;
+        // }
+
+        let mut cmd = None;
+        match message.message_type {
+            DpMessageType::ServerCommand => {
+                cmd = match ServerCommand::from_payload(&message.payload) {
+                    Ok(cmd) => Some(cmd),
+                    Err(e) => {
+                        println!("Failed to parse command: {}", e);
+                        print!("Payload (hex): ");
+                        for byte in &message.payload {
+                            print!("{:02x}", byte);
+                        }
+                        println!();
+                        continue;
+                    }
+                };
+
+                println!("RECV < {:?}", cmd);
+            }
+            other => {
+                println!("Unknown message type: {:?}", other);
+            }
         }
 
-        let cmd = match ServerCommand::from_payload(&message.payload) {
-            Ok(cmd) => cmd,
-            Err(e) => {
-                println!("Failed to parse command: {}", e);
-                continue;
+        match cmd.as_ref().unwrap().cmd.as_str() {
+            "cinfo" => {
+                let response = json!({
+                    "cinfo": { "browser": false },
+                    "message": "Client info OK!",
+                    "type": "result"
+                });
+
+                let response_bytes = response.to_string().into_bytes();
+                let reply = DpMessage::new(
+                    DpMessageType::ServerCommand,
+                    message.user_id,
+                    response_bytes,
+                );
+                socket.write_all(&reply.serialize()).await?;
             }
-        };
+            "lookup" => {
+                let response = json!({
+                    "lookup": "host",
+                    "message": "Host lookup OK!",
+                    "type": "result"
+                });
 
-        println!("Parsed command: {:?}", cmd);
+                let response_bytes = response.to_string().into_bytes();
+                let reply = DpMessage::new(
+                    DpMessageType::ServerCommand,
+                    message.user_id,
+                    response_bytes,
+                );
+                socket.write_all(&reply.serialize()).await?;
+            }
+            "ident" => {
+                use serde_json::json;
 
-        match client_state.state {
-            LoginState::WaitForIdent => {
-                if cmd.cmd == "cinfo" {
-                    // Client info received - acknowledge it
-                    let response = DpMessage::new(
+                let response = json!({
+                    "flags": ["WEB", "WEBSESSION", "WEBHOST", "HOST"],
+                    "guest": true,
+                    "ident": "limeburst",
+                    "message": "Guest login OK!",
+                    "state": "identOk",
+                    "type": "result"
+                });
+
+                let response_bytes = response.to_string().into_bytes();
+                let reply = DpMessage::new(
+                    DpMessageType::ServerCommand,
+                    message.user_id,
+                    response_bytes,
+                );
+                socket.write_all(&reply.serialize()).await?;
+
+                {
+                    let response = json!({
+                        "message": "Welcome",
+                        "sessions": sessions
+                            .lock()
+                            .unwrap()
+                            .values()
+                            .map(|session| {
+                                json!({
+                                    "activeDrawingUserCount": 0,
+                                    "alias": "",
+                                    "authOnly": false,
+                                    "autotitle": false,
+                                    "closed": false,
+                                    "founder": "limeburst",
+                                    "hasPassword": false,
+                                    "id": session.id,
+                                    "idleOverride": false,
+                                    "invites": false,
+                                    "maxUserCount": 254,
+                                    "nsfm": false,
+                                    "persistent": false,
+                                    "protocol": "dp:4.25.1",
+                                    "size": 372,
+                                    "startTime": "2025-08-14T13:41:15Z",
+                                    "title": "",
+                                    "unlisted": false,
+                                    "userCount": 0
+                                })
+                            })
+                            .collect::<Vec<Value>>(),
+                        "type": "login"
+                    });
+
+                    let response_bytes = response.to_string().into_bytes();
+                    let reply = DpMessage::new(
                         DpMessageType::ServerCommand,
-                        0,
-                        json!({
-                            "type": ServerReplyType::Result.as_str(),
-                            "cinfo": {"browser": false},
-                            "message": "Client info OK!"
-                        })
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
+                        message.user_id,
+                        response_bytes,
                     );
-                    socket.write_all(&response.serialize()).await?;
-                    println!("Client info received");
-                } else if cmd.cmd == "lookup" {
-                    // Lookup request - respond with empty lookup (no sessions to lookup)
-                    let response = DpMessage::new(
-                        DpMessageType::ServerCommand,
-                        0,
-                        json!({
-                            "type": ServerReplyType::Result.as_str(),
-                            "lookup": "host",
-                            "message": "Host lookup OK!"
-                        })
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    );
-                    socket.write_all(&response.serialize()).await?;
-                    println!("Lookup request handled");
-                } else if cmd.cmd == "ident" {
-                    if let Some(username) = cmd.args.get(0).and_then(|v| v.as_str()) {
-                        client_state.username = Some(username.to_string());
-                        client_state.state = LoginState::WaitForLogin;
-                        
-                        let login_ok = create_login_ok_message(
-                            "Guest login OK!",
-                            vec![],
-                            username,
-                            true
-                        );
-                        socket.write_all(&login_ok.serialize()).await?;
-                        
-                        let session_list = create_session_list();
-                        socket.write_all(&session_list.serialize()).await?;
-                        
-                        println!("User {} logged in as guest", username);
-                    } else {
-                        let error = create_error_message("syntax", "Expected username");
-                        socket.write_all(&error.serialize()).await?;
-                    }
-                } else {
-                    let error = create_error_message("invalidCommand", "Expected cinfo, lookup, or ident command");
-                    socket.write_all(&error.serialize()).await?;
+                    socket.write_all(&reply.serialize()).await?;
                 }
-            },
-            LoginState::WaitForLogin => {
-                if cmd.cmd == "host" {
-                    // Handle host command - create session
-                    let response = DpMessage::new(
-                        DpMessageType::ServerCommand,
-                        0,
-                        json!({
-                            "type": ServerReplyType::Result.as_str(),
-                            "state": "host",
-                            "message": "Starting new session!",
-                            "id": "test-session",
-                            "user": 1,
-                            "flags": [],
-                            "authId": "guest"
-                        })
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    );
-                    socket.write_all(&response.serialize()).await?;
-                    println!("User {} hosting session", client_state.username.as_ref().unwrap_or(&"unknown".to_string()));
-                    break; // Login complete
-                } else if cmd.cmd == "join" {
-                    // Handle join command - join session
-                    let response = DpMessage::new(
-                        DpMessageType::ServerCommand,
-                        0,
-                        json!({
-                            "type": ServerReplyType::Result.as_str(),
-                            "state": "join",
-                            "message": "Joining session!",
-                            "id": "test-session",
-                            "user": 2,
-                            "flags": [],
-                            "authId": "guest"
-                        })
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                    );
-                    socket.write_all(&response.serialize()).await?;
-                    println!("User {} joining session", client_state.username.as_ref().unwrap_or(&"unknown".to_string()));
-                    break; // Login complete
-                } else {
-                    let error = create_error_message("invalidCommand", "Expected host or join command");
-                    socket.write_all(&error.serialize()).await?;
-                }
-            },
+            }
+
+            "host" => {
+                // let response = serde_json::json!({
+                //     "message": "New session",
+                //     "sessions": [{
+                //         "activeDrawingUserCount": 0,
+                //         "alias": "",
+                //         "authOnly": false,
+                //         "autotitle": false,
+                //         "closed": false,
+                //         "founder": "limeburst",
+                //         "hasPassword": false,
+                //         "id": ulid::Ulid::new().to_string(),
+                //         "idleOverride": false,
+                //         "invites": false,
+                //         "maxUserCount": 254,
+                //         "nsfm": false,
+                //         "persistent": false,
+                //         "protocol": "dp:4.25.1",
+                //         "size": 372,
+                //         "startTime": "2025-08-14T13:41:15Z",
+                //         "title": "",
+                //         "unlisted": false,
+                //         "userCount": 0
+                //     }],
+                //     "type": "login"
+                // });
+
+                // let response_bytes = response.to_string().into_bytes();
+                // let reply = DpMessage::new(
+                //     DpMessageType::ServerCommand,
+                //     message.user_id,
+                //     response_bytes,
+                // );
+                // socket.write_all(&reply.serialize()).await?;
+
+                // Log the session creation
+                // let log_response = serde_json::json!({
+                //     "level": "Info",
+                //     "message": "Session  created by limeburst",
+                //     "timestamp": "2025-08-14T13:41:15Z",
+                //     "topic": "Status",
+                //     "type": "log"
+                // });
+
+                // let log_response_bytes = log_response.to_string().into_bytes();
+                // let log_reply = DpMessage::new(
+                //     DpMessageType::ServerCommand,
+                //     message.user_id,
+                //     log_response_bytes,
+                // );
+                // socket.write_all(&log_reply.serialize()).await?;
+
+                // Send result
+                let session_id = ulid::Ulid::new().to_string();
+                sessions.lock().unwrap().insert(
+                    session_id.clone(),
+                    Session {
+                        id: session_id.clone(),
+                        history: SessionHistory { size_in_bytes: 0 },
+                    },
+                );
+
+                let server_command_response = serde_json::json!({
+                    "join": {
+                        "authId": "",
+                        "flags": [],
+                        "id": session_id,
+                        "user": 1
+                    },
+                    "message": "Starting new session!",
+                    "state": "host",
+                    "type": "result"
+                });
+
+                let server_command_bytes = server_command_response.to_string().into_bytes();
+                let server_command_reply = DpMessage::new(
+                    DpMessageType::ServerCommand,
+                    message.user_id,
+                    server_command_bytes,
+                );
+                socket.write_all(&server_command_reply.serialize()).await?;
+
+                // Send join message
+                let join_message = MsgJoin {
+                    flags: 0,
+                    name: "limeburst".to_string(),
+                };
+
+                let reply = DpMessage::new(
+                    DpMessageType::Join,
+                    message.user_id,
+                    join_message.serialize(),
+                );
+                println!("SENT > {:?}", reply);
+                socket.write_all(&reply.serialize()).await?;
+            }
             _ => {
-                let error = create_error_message("invalidState", "Invalid state");
-                socket.write_all(&error.serialize()).await?;
+                println!("Unknown command: {}", cmd.as_ref().unwrap().cmd);
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -677,12 +849,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind("0.0.0.0:27750").await?;
     println!("Drawpile server listening on 0.0.0.0:27750");
 
+    let sessions = Arc::new(Mutex::new(HashMap::<String, Session>::new()));
+
     loop {
         let (socket, addr) = listener.accept().await?;
         println!("New connection from: {}", addr);
-        
+
+        let sessions = sessions.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_client_connection(socket).await {
+            if let Err(e) = handle_client_connection(socket, sessions).await {
                 println!("Error handling client: {}", e);
             }
         });
