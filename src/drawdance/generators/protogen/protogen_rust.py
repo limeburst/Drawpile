@@ -27,23 +27,23 @@ from typing import Dict, List, Any
 
 class RustFieldType:
     """Base class for Rust field type mappings"""
-
+    
     def __init__(self, rust_type: str, is_array: bool = False):
         self.rust_type = rust_type
         self.is_array = is_array
-
+    
     def get_type_name(self, _field) -> str:
         """Get the Rust type name for this field"""
         return self.rust_type
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         """Get expression for serializing this field"""
         return f"writer.write_{self.rust_type.lower()}({field_name})?;"
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         """Get expression for deserializing this field"""
         return f"let {field_name} = reader.read_{self.rust_type.lower()}()?;"
-
+    
     def get_size_expr(self, _field_name: str) -> str:
         """Get expression for calculating size of this field"""
         return f"std::mem::size_of::<{self.rust_type}>()"
@@ -51,196 +51,170 @@ class RustFieldType:
 
 class RustIntegerFieldType(RustFieldType):
     """Integer field types"""
-
+    
     def __init__(self, rust_type: str, byte_size: int):
         super().__init__(rust_type)
         self.byte_size = byte_size
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
-        if self.rust_type.startswith("i"):
+        if self.rust_type.startswith('i'):
             return f"writer.write_i{self.byte_size * 8}({field_name})?;"
         else:
             return f"writer.write_u{self.byte_size * 8}({field_name})?;"
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
-        if self.rust_type.startswith("i"):
+        if self.rust_type.startswith('i'):
             return f"let {field_name} = reader.read_i{self.byte_size * 8}()?;"
         else:
             return f"let {field_name} = reader.read_u{self.byte_size * 8}()?;"
-
+    
     def get_size_expr(self, _field_name: str) -> str:
         return str(self.byte_size)
 
 
 class RustBoolFieldType(RustFieldType):
     """Boolean field type"""
-
+    
     def __init__(self):
         super().__init__("bool")
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"writer.write_u8(if {field_name} {{ 1 }} else {{ 0 }})?;"
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"let {field_name} = reader.read_u8()? != 0;"
-
+    
     def get_size_expr(self, _field_name: str) -> str:
         return "1"
 
 
 class RustStringFieldType(RustFieldType):
-    """String field type - always reads remaining bytes, no length prefix"""
-
-    def __init__(self, raw_format=False):
-        super().__init__("String", is_array=True)
-        self.raw_format = raw_format
-
-    def get_type_name(self, _field) -> str:
-        return "String"
-
-    def get_serialize_expr(self, field_name: str) -> str:
-        return f"""
-        let bytes = {field_name}.as_bytes();
-        writer.write_all(bytes)?;"""
-
-    def get_deserialize_expr(self, field_name: str) -> str:
-        return f"""
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let {field_name} = String::from_utf8(buf)?;"""
-
-    def get_size_expr(self, field_name: str) -> str:
-        return f"{field_name}.len()"
-
-
-class RustStringWithLengthFieldType(RustFieldType):
-    """String field type with length prefix - used for Join message name field"""
-
+    """String field type"""
+    
     def __init__(self):
         super().__init__("String", is_array=True)
-
+    
     def get_type_name(self, _field) -> str:
         return "String"
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"""
         let bytes = {field_name}.as_bytes();
-        writer.write_u8(bytes.len() as u8)?;
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;"""
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"""
-        let len = reader.read_u8()? as usize;
+        let len = reader.read_u16()? as usize;
         let mut buf = vec![0u8; len];
         reader.read_exact(&mut buf)?;
         let {field_name} = String::from_utf8(buf)?;"""
-
+    
     def get_size_expr(self, field_name: str) -> str:
-        return f"1 + {field_name}.len()"
+        return f"2 + {field_name}.len()"
 
 
 class RustBytesFieldType(RustFieldType):
     """Byte array field type"""
-
+    
     def __init__(self):
         super().__init__("Vec<u8>", is_array=True)
-
+    
     def get_type_name(self, _field) -> str:
         return "Vec<u8>"
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"""
+        writer.write_u16({field_name}.len() as u16)?;
         writer.write_all(&{field_name})?;"""
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"""
-        let mut {field_name} = Vec::new();
-        reader.read_to_end(&mut {field_name})?;"""
-
+        let len = reader.read_u16()? as usize;
+        let mut {field_name} = vec![0u8; len];
+        reader.read_exact(&mut {field_name})?;"""
+    
     def get_size_expr(self, field_name: str) -> str:
-        return f"{field_name}.len()"
+        return f"2 + {field_name}.len()"
 
 
 class RustVectorFieldType(RustFieldType):
-    """Vector field types for typed arrays - reads all remaining bytes, no length prefix"""
-
+    """Vector field types for typed arrays"""
+    
     def __init__(self, element_type: str, element_size: int):
         super().__init__(f"Vec<{element_type}>", is_array=True)
         self.element_type = element_type
         self.element_size = element_size
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"""
+        writer.write_u16({field_name}.len() as u16)?;
         for item in &{field_name} {{
-            writer.write_{self.element_type.lower().replace("u", "u").replace("i", "i")}(*item)?;
+            writer.write_{self.element_type.lower().replace('u', 'u').replace('i', 'i')}(*item)?;
         }}"""
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"""
-        // Read all remaining bytes and parse as {self.element_type} values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut {field_name} = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_{self.element_type.lower().replace("u", "u").replace("i", "i")}() {{
-            {field_name}.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut {field_name} = Vec::with_capacity(len);
+        for _ in 0..len {{
+            {field_name}.push(reader.read_{self.element_type.lower().replace('u', 'u').replace('i', 'i')}()?);
         }}"""
-
+    
     def get_size_expr(self, field_name: str) -> str:
-        return f"{field_name}.len() * {self.element_size}"
+        return f"2 + {field_name}.len() * {self.element_size}"
 
 
 class RustEnumFieldType(RustFieldType):
     """Enum field type"""
-
+    
     def __init__(self, enum_name: str, variants: List[str]):
         super().__init__(enum_name)
         self.enum_name = enum_name
         self.variants = variants
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"writer.write_u8({field_name} as u8)?;"
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"let {field_name} = {self.enum_name}::from_u8(reader.read_u8()?)?;"
-
+    
     def get_size_expr(self, _field_name: str) -> str:
         return "1"
 
 
 class RustFlagsFieldType(RustFieldType):
     """Flags field type"""
-
+    
     def __init__(self, flags: List[tuple], size: int):
         super().__init__(f"u{size * 8}")
         self.flags = flags
         self.size = size
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"writer.write_u{self.size * 8}({field_name})?;"
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"let {field_name} = reader.read_u{self.size * 8}()?;"
-
+    
     def get_size_expr(self, field_name: str) -> str:
         return str(self.size)
 
 
 class RustStructFieldType(RustFieldType):
     """Struct field type for nested structures"""
-
+    
     def __init__(self, struct_name: str):
         super().__init__(f"Vec<{struct_name}>", is_array=True)
         self.struct_name = struct_name
-
+    
     def get_serialize_expr(self, field_name: str) -> str:
         return f"""
         writer.write_u16({field_name}.len() as u16)?;
         for item in &{field_name} {{
             item.serialize(writer)?;
         }}"""
-
+    
     def get_deserialize_expr(self, field_name: str) -> str:
         return f"""
         let len = reader.read_u16()? as usize;
@@ -248,108 +222,88 @@ class RustStructFieldType(RustFieldType):
         for _ in 0..len {{
             {field_name}.push({self.struct_name}::deserialize(reader)?);
         }}"""
-
+    
     def get_size_expr(self, field_name: str) -> str:
-        return (
-            f"2 + {field_name}.iter().map(|item| item.serialized_size()).sum::<usize>()"
-        )
+        return f"2 + {field_name}.iter().map(|item| item.serialized_size()).sum::<usize>()"
 
 
 # Field type registry
 RUST_FIELD_TYPES = {
-    "i8": RustIntegerFieldType("i8", 1),
-    "i16": RustIntegerFieldType("i16", 2),
-    "i24": RustIntegerFieldType("i32", 3),  # Use i32 for 24-bit
-    "i32": RustIntegerFieldType("i32", 4),
-    "u8": RustIntegerFieldType("u8", 1),
-    "u16": RustIntegerFieldType("u16", 2),
-    "u24": RustIntegerFieldType("u32", 3),  # Use u32 for 24-bit
-    "u32": RustIntegerFieldType("u32", 4),
-    "bool": RustBoolFieldType(),
-    "argb32": RustIntegerFieldType("u32", 4),
-    "rgb24": RustIntegerFieldType("u32", 3),
-    "blendmode": RustIntegerFieldType("u8", 1),
-    "Bytes": RustBytesFieldType(),
-    "Vec<u8>": RustVectorFieldType("u8", 1),
-    "Vec<u16>": RustVectorFieldType("u16", 2),
-    "Vec<u24>": RustVectorFieldType("u32", 3),
-    "Vec<u32>": RustVectorFieldType("u32", 4),
-    "Vec<i32>": RustVectorFieldType("i32", 4),
+    'i8': RustIntegerFieldType('i8', 1),
+    'i16': RustIntegerFieldType('i16', 2),
+    'i24': RustIntegerFieldType('i32', 3),  # Use i32 for 24-bit
+    'i32': RustIntegerFieldType('i32', 4),
+    'u8': RustIntegerFieldType('u8', 1),
+    'u16': RustIntegerFieldType('u16', 2),
+    'u24': RustIntegerFieldType('u32', 3),  # Use u32 for 24-bit
+    'u32': RustIntegerFieldType('u32', 4),
+    'bool': RustBoolFieldType(),
+    'argb32': RustIntegerFieldType('u32', 4),
+    'rgb24': RustIntegerFieldType('u32', 3),
+    'blendmode': RustIntegerFieldType('u8', 1),
+    'String': RustStringFieldType(),
+    'Bytes': RustBytesFieldType(),
+    'Vec<u8>': RustVectorFieldType('u8', 1),
+    'Vec<u16>': RustVectorFieldType('u16', 2),
+    'Vec<u24>': RustVectorFieldType('u32', 3),
+    'Vec<u32>': RustVectorFieldType('u32', 4),
+    'Vec<i32>': RustVectorFieldType('i32', 4),
 }
 
 
 class RustField:
     """Represents a field in a Rust message struct"""
-
+    
     def __init__(self, field, message_name: str):
         # Handle Rust keywords by prefixing with msg_
         field_name = field.name
-        if field_name == "type":
-            field_name = "msg_type"
+        if field_name == 'type':
+            field_name = 'msg_type'
         self.name = to_snake_case(field_name)
         self.original_field = field
         self.field_type = self._get_field_type(field, message_name)
-        self.comment = getattr(field, "comment", "")
-
+        self.comment = getattr(field, 'comment', '')
+        
     def _get_field_type(self, field, message_name: str) -> RustFieldType:
         """Determine the Rust field type from protogen field"""
         field_type_name = field.field_type
-
+        
         # Handle enums
-        if hasattr(field, "variants") and field.variants:
+        if hasattr(field, 'variants') and field.variants:
             enum_name = f"{to_pascal_case(message_name)}{to_pascal_case(field.name)}"
             return RustEnumFieldType(enum_name, field.variants)
-
+        
         # Handle flags
-        if hasattr(field, "flags") and field.flags:
+        if hasattr(field, 'flags') and field.flags:
             size = 1 if len(field.flags) <= 8 else 2 if len(field.flags) <= 16 else 4
             return RustFlagsFieldType(field.flags, size)
-
+        
         # Handle struct fields
-        if field_type_name == "struct":
+        if field_type_name == 'struct':
             struct_name = to_pascal_case(field.struct_name)
             return RustStructFieldType(struct_name)
-
-        # Handle string fields with special cases
-        if field_type_name == "String":
-            # Special case: Join message name field uses length prefix
-            if message_name == "Join" and field.name == "name":
-                return RustStringWithLengthFieldType()
-            
-            # Check if this is a raw format string (no length prefix)
-            # This can be determined by checking if the message only has a single string field
-            # and the message is a control message (ID <= 31) or explicitly marked
-            is_raw_format = (
-                message_name == "ServerCommand"  # Known case
-                or (hasattr(field, 'raw_format') and field.raw_format)  # Explicit marking
-            )
-            return RustStringFieldType(raw_format=is_raw_format)
-
-        # Handle bytes fields - always use header length, never parse length prefixes
-        if field_type_name == "Bytes":
-            return RustBytesFieldType()
-
+        
         # Handle regular types
         if field_type_name in RUST_FIELD_TYPES:
             return RUST_FIELD_TYPES[field_type_name]
-
+        
         raise ValueError(f"Unknown field type: {field_type_name}")
-
+    
     @property
     def rust_type(self) -> str:
         """Get the Rust type string for this field"""
         return self.field_type.get_type_name(self.original_field)
-
+    
     @property
     def serialize_expr(self) -> str:
         """Get the serialization expression"""
         return self.field_type.get_serialize_expr(f"self.{self.name}")
-
+    
     @property
     def deserialize_expr(self) -> str:
         """Get the deserialization expression"""
         return self.field_type.get_deserialize_expr(self.name)
-
+    
     @property
     def size_expr(self) -> str:
         """Get the size calculation expression"""
@@ -358,7 +312,7 @@ class RustField:
 
 class RustMessage:
     """Represents a message struct in Rust"""
-
+    
     def __init__(self, message):
         self.name = message.name
         self.id = message.id
@@ -368,51 +322,46 @@ class RustMessage:
         self.fields = []
         self.enums = []
         self.structs = []
-
+        
         if not self.reserved:
             if not self.alias:
                 self._process_fields(message)
             else:
                 # Alias messages will be handled during init_alias
                 pass
-
+    
     def _process_fields(self, message):
         """Process protogen fields into Rust fields"""
         for field in message.fields:
             rust_field = RustField(field, self.name)
             self.fields.append(rust_field)
-
+            
             # Collect enums and structs
             if isinstance(rust_field.field_type, RustEnumFieldType):
-                self.enums.append(
-                    (rust_field.field_type.enum_name, rust_field.field_type.variants)
-                )
+                self.enums.append((rust_field.field_type.enum_name, rust_field.field_type.variants))
             elif isinstance(rust_field.field_type, RustStructFieldType):
                 self._process_struct_field(field)
-
+    
     def _process_struct_field(self, field):
         """Process struct fields"""
-        if hasattr(field, "subfields"):
+        if hasattr(field, 'subfields'):
             struct_name = to_pascal_case(field.struct_name)
             struct_fields = []
             for subfield in field.subfields:
                 rust_subfield = RustField(subfield, struct_name)
                 struct_fields.append(rust_subfield)
             self.structs.append((struct_name, struct_fields))
-
+    
     @property
     def rust_name(self) -> str:
         """Get the Rust struct name"""
-        # Control messages (ID 0-31) should preserve CamelCase naming
-        if self.id <= 31:
-            return self.name  # Keep original CamelCase
         return to_pascal_case(self.name)
-
+    
     @property
     def enum_name(self) -> str:
         """Get the message type enum name"""
         return to_screaming_snake_case(self.name)
-
+    
     def init_alias(self, messages):
         """Initialize alias messages by copying from their targets"""
         if self.alias:
@@ -426,24 +375,16 @@ class RustMessage:
 
 def to_snake_case(name: str) -> str:
     """Convert CamelCase to snake_case"""
-    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 def to_pascal_case(name: str) -> str:
     """Convert snake_case or other formats to PascalCase"""
     # Handle special cases
-    if name.lower() == "acl":
-        return "Acl"
-    
-    # If already in CamelCase/PascalCase, return as-is
-    if re.match(r'^[A-Z][a-zA-Z0-9]*$', name):
-        return name
-        
-    # Split on underscores, spaces, and camelCase boundaries
-    # First convert camelCase to snake_case, then back to PascalCase
-    s1 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', name)
-    return "".join(word.capitalize() for word in re.split(r"[_\s]+", s1))
+    if name.lower() == 'acl':
+        return 'Acl'
+    return ''.join(word.capitalize() for word in re.split(r'[_\s]+', name))
 
 
 def to_screaming_snake_case(name: str) -> str:
@@ -453,121 +394,95 @@ def to_screaming_snake_case(name: str) -> str:
 
 def generate_rust_code(protocol: Dict[str, Any]) -> str:
     """Generate complete Rust code from protocol definition"""
-
-    messages = [RustMessage(msg) for msg in protocol["messages"]]
-
+    
+    messages = [RustMessage(msg) for msg in protocol['messages']]
+    
     # Initialize alias messages
     for msg in messages:
         msg.init_alias(messages)
-
+    
     non_reserved_messages = [msg for msg in messages if not msg.reserved]
-
+    
     # Collect all enums and structs (deduplicated)
     all_enums = []
     all_structs = []
     seen_enums = set()
     seen_structs = set()
-
+    
     for msg in non_reserved_messages:
         for enum_name, variants in msg.enums:
             if enum_name not in seen_enums:
                 all_enums.append((enum_name, variants))
                 seen_enums.add(enum_name)
-
+        
         for struct_name, fields in msg.structs:
             if struct_name not in seen_structs:
                 all_structs.append((struct_name, fields))
                 seen_structs.add(struct_name)
-
+    
     # Generate code sections
     code_parts = []
-
+    
     # File header
     code_parts.append(generate_file_header())
-
+    
     # Imports and modules
     code_parts.append(generate_imports())
-
+    
     # Error types
     code_parts.append(generate_error_types())
-
+    
     # Enums
     if all_enums:
         code_parts.append(generate_enums(all_enums))
-
+    
     # Message type enum
     code_parts.append(generate_message_type_enum(non_reserved_messages))
-
-    # Message header structure
-    code_parts.append(generate_message_header())
-
+    
     # Structs for nested data
     if all_structs:
         code_parts.append(generate_structs(all_structs))
-
+    
     # Message structs
     code_parts.append(generate_message_structs(non_reserved_messages))
-
+    
     # Message enum
     code_parts.append(generate_message_enum(non_reserved_messages))
-
+    
     # Serialization/deserialization traits
     code_parts.append(generate_serialization_traits())
-
+    
     # Message implementations
     code_parts.append(generate_message_implementations(non_reserved_messages))
-
-    return "\n\n".join(code_parts)
+    
+    return '\n\n'.join(code_parts)
 
 
 def generate_file_header() -> str:
     """Generate file header with copyright and description"""
-    return """// SPDX-License-Identifier: MIT
+    return '''// SPDX-License-Identifier: MIT
 //
 // Generated code - do not edit manually
 // This file was generated from protocol.yaml
 
 #![allow(clippy::all)]
 #![allow(dead_code)]
-#![allow(non_camel_case_types)]"""
+#![allow(non_camel_case_types)]'''
 
 
 def generate_imports() -> str:
     """Generate import statements"""
-    return """use std::io::{Read, Write, Result as IoResult};"""
+    return '''use std::io::{Read, Write, Result as IoResult};'''
 
 
 def generate_error_types() -> str:
     """Generate error types"""
-    return """use std::error::Error;
-use std::fmt;
-
-#[derive(Debug)]
+    return '''#[derive(Debug)]
 pub enum ProtocolError {
     IoError(std::io::Error),
     InvalidEnumValue(u8),
     InvalidMessageType(u8),
     InvalidStringData,
-}
-
-impl fmt::Display for ProtocolError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ProtocolError::IoError(e) => write!(f, "IO error: {}", e),
-            ProtocolError::InvalidEnumValue(v) => write!(f, "Invalid enum value: {}", v),
-            ProtocolError::InvalidMessageType(v) => write!(f, "Invalid message type: {}", v),
-            ProtocolError::InvalidStringData => write!(f, "Invalid string data"),
-        }
-    }
-}
-
-impl Error for ProtocolError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ProtocolError::IoError(e) => Some(e),
-            _ => None,
-        }
-    }
 }
 
 impl From<std::io::Error> for ProtocolError {
@@ -582,170 +497,130 @@ impl From<std::string::FromUtf8Error> for ProtocolError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, ProtocolError>;"""
+pub type Result<T> = std::result::Result<T, ProtocolError>;'''
 
 
 def generate_enums(enums: List[tuple]) -> str:
     """Generate enum definitions"""
     enum_code = []
-
+    
     for enum_name, variants in enums:
-        enum_code.append(f"""#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum_code.append(f'''#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum {enum_name} {{""")
-
+pub enum {enum_name} {{''')
+        
         for i, variant in enumerate(variants):
-            enum_code.append(f"    {to_pascal_case(variant)} = {i},")
-
-        enum_code.append("}")
-        enum_code.append("")
-
+            enum_code.append(f'    {to_pascal_case(variant)} = {i},')
+        
+        enum_code.append('}')
+        enum_code.append('')
+        
         # Add FromU8 implementation
-        enum_code.append(f"""impl {enum_name} {{
+        enum_code.append(f'''impl {enum_name} {{
     pub fn from_u8(value: u8) -> Result<Self> {{
-        match value {{""")
-
+        match value {{''')
+        
         for i, variant in enumerate(variants):
-            enum_code.append(
-                f"            {i} => Ok({enum_name}::{to_pascal_case(variant)}),"
-            )
-
-        enum_code.append("            _ => Err(ProtocolError::InvalidEnumValue(value)),")
-        enum_code.append("        }")
-        enum_code.append("    }")
-        enum_code.append("}")
-        enum_code.append("")
-
-    return "\n".join(enum_code)
+            enum_code.append(f'            {i} => Ok({enum_name}::{to_pascal_case(variant)}),')
+        
+        enum_code.append(f'''            _ => Err(ProtocolError::InvalidEnumValue(value)),
+        }}
+    }}
+}}''')
+        enum_code.append('')
+    
+    return '\n'.join(enum_code)
 
 
 def generate_message_type_enum(messages: List[RustMessage]) -> str:
     """Generate the main message type enum"""
-    # Include all messages (both original and alias)
-    return f"""#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    # Only include non-alias messages
+    concrete_messages = [msg for msg in messages if not msg.alias]
+    
+    return f'''#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum MessageType {{
-{chr(10).join(f"    {msg.enum_name} = {msg.id}," for msg in messages)}
+{chr(10).join(f"    {msg.enum_name} = {msg.id}," for msg in concrete_messages)}
 }}
 
 impl MessageType {{
     pub fn from_u8(value: u8) -> Result<Self> {{
         match value {{
-{chr(10).join(f"            {msg.id} => Ok(MessageType::{msg.enum_name})," for msg in messages)}
+{chr(10).join(f"            {msg.id} => Ok(MessageType::{msg.enum_name})," for msg in concrete_messages)}
             _ => Err(ProtocolError::InvalidMessageType(value)),
         }}
     }}
-}}"""
+}}'''
 
 
 def generate_structs(structs: List[tuple]) -> str:
     """Generate struct definitions for nested data"""
     struct_code = []
-
+    
     for struct_name, fields in structs:
-        struct_code.append(f"""#[derive(Debug, Clone, PartialEq)]
-pub struct {struct_name} {{""")
-
+        struct_code.append(f'''#[derive(Debug, Clone, PartialEq)]
+pub struct {struct_name} {{''')
+        
         for field in fields:
             if field.comment:
-                struct_code.append(f"    /// {field.comment}")
-            struct_code.append(f"    pub {field.name}: {field.rust_type},")
-
-        struct_code.append("}")
-        struct_code.append("")
-
-    return "\n".join(struct_code)
+                struct_code.append(f'    /// {field.comment}')
+            struct_code.append(f'    pub {field.name}: {field.rust_type},')
+        
+        struct_code.append('}')
+        struct_code.append('')
+    
+    return '\n'.join(struct_code)
 
 
 def generate_message_structs(messages: List[RustMessage]) -> str:
     """Generate message struct definitions"""
     struct_code = []
-
+    
     for msg in messages:
+        if msg.alias:
+            continue
+            
         if msg.comment:
-            comment_lines = msg.comment.strip().split("\n")
+            comment_lines = msg.comment.strip().split('\n')
             for line in comment_lines:
-                struct_code.append(f"/// {line.strip()}")
-
-        struct_code.append(f"""#[derive(Debug, Clone, PartialEq)]
-pub struct {msg.rust_name} {{""")
-
+                struct_code.append(f'/// {line.strip()}')
+        
+        struct_code.append(f'''#[derive(Debug, Clone, PartialEq)]
+pub struct {msg.rust_name} {{''')
+        
         for field in msg.fields:
             if field.comment:
-                struct_code.append(f"    /// {field.comment}")
-            struct_code.append(f"    pub {field.name}: {field.rust_type},")
-
-        struct_code.append("}")
-        struct_code.append("")
-
-    return "\n".join(struct_code)
-
-
-def generate_message_header() -> str:
-    """Generate message header structure"""
-    return """/// Message header structure following Drawpile protocol format:
-/// uint16 payload length
-/// uint8  message type
-/// uint8  context (user) ID  
-#[derive(Debug, Clone, PartialEq)]
-pub struct MessageHeader {
-    pub payload_length: u16,
-    pub message_type: u8,
-    pub user_id: u8,
-}
-
-impl MessageHeader {
-    pub fn new(message_type: u8, user_id: u8, payload_length: u16) -> Self {
-        Self {
-            payload_length,
-            message_type,
-            user_id,
-        }
-    }
-
-    pub fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u16(self.payload_length)?;
-        writer.write_u8(self.message_type)?;
-        writer.write_u8(self.user_id)?;
-        Ok(())
-    }
-
-    pub fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let payload_length = reader.read_u16()?;
-        let message_type = reader.read_u8()?;
-        let user_id = reader.read_u8()?;
-        Ok(Self {
-            payload_length,
-            message_type,
-            user_id,
-        })
-    }
-
-    pub const SIZE: usize = 4; // 2 + 1 + 1 bytes
-}"""
+                struct_code.append(f'    /// {field.comment}')
+            struct_code.append(f'    pub {field.name}: {field.rust_type},')
+        
+        struct_code.append('}')
+        struct_code.append('')
+    
+    return '\n'.join(struct_code)
 
 
 def generate_message_enum(messages: List[RustMessage]) -> str:
     """Generate the main Message enum"""
-    enum_code = [
-        """#[derive(Debug, Clone, PartialEq)]
-pub enum Message {"""
-    ]
-
-    for msg in messages:
+    # Only include non-alias messages
+    concrete_messages = [msg for msg in messages if not msg.alias]
+    
+    enum_code = ['''#[derive(Debug, Clone, PartialEq)]
+pub enum Message {''']
+    
+    for msg in concrete_messages:
         if msg.comment:
-            comment_lines = msg.comment.strip().split("\n")
+            comment_lines = msg.comment.strip().split('\n')
             for line in comment_lines:
-                enum_code.append(f"    /// {line.strip()}")
-        enum_code.append(f"    {msg.rust_name} {{ user_id: u8, payload: {msg.rust_name} }},")
-
-    enum_code.append("}")
-    return "\n".join(enum_code)
+                enum_code.append(f'    /// {line.strip()}')
+        enum_code.append(f'    {msg.rust_name}({msg.rust_name}),')
+    
+    enum_code.append('}')
+    return '\n'.join(enum_code)
 
 
 def generate_serialization_traits() -> str:
     """Generate serialization traits"""
-    return """pub trait BinaryWriter {
+    return '''pub trait BinaryWriter {
     fn write_u8(&mut self, value: u8) -> IoResult<()>;
     fn write_u16(&mut self, value: u16) -> IoResult<()>;
     fn write_u24(&mut self, value: u32) -> IoResult<()>;
@@ -767,44 +642,43 @@ pub trait BinaryReader {
     fn read_i24(&mut self) -> IoResult<i32>;
     fn read_i32(&mut self) -> IoResult<i32>;
     fn read_exact(&mut self, buf: &mut [u8]) -> IoResult<()>;
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> IoResult<usize>;
 }
 
 impl<W: Write> BinaryWriter for W {
     fn write_u8(&mut self, value: u8) -> IoResult<()> {
         self.write_all(&[value])
     }
-
+    
     fn write_u16(&mut self, value: u16) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_u24(&mut self, value: u32) -> IoResult<()> {
         let bytes = value.to_be_bytes();
         self.write_all(&bytes[1..])
     }
-
+    
     fn write_u32(&mut self, value: u32) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_i8(&mut self, value: i8) -> IoResult<()> {
         self.write_all(&[value as u8])
     }
-
+    
     fn write_i16(&mut self, value: i16) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_i24(&mut self, value: i32) -> IoResult<()> {
         let bytes = value.to_be_bytes();
         self.write_all(&bytes[1..])
     }
-
+    
     fn write_i32(&mut self, value: i32) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
         Write::write_all(self, buf)
     }
@@ -816,33 +690,33 @@ impl<R: Read> BinaryReader for R {
         self.read_exact(&mut buf)?;
         Ok(buf[0])
     }
-
+    
     fn read_u16(&mut self) -> IoResult<u16> {
         let mut buf = [0u8; 2];
         self.read_exact(&mut buf)?;
         Ok(u16::from_be_bytes(buf))
     }
-
+    
     fn read_u24(&mut self) -> IoResult<u32> {
         let mut buf = [0u8; 3];
         self.read_exact(&mut buf)?;
         Ok(u32::from_be_bytes([0, buf[0], buf[1], buf[2]]))
     }
-
+    
     fn read_u32(&mut self) -> IoResult<u32> {
         let mut buf = [0u8; 4];
         self.read_exact(&mut buf)?;
         Ok(u32::from_be_bytes(buf))
     }
-
+    
     fn read_i8(&mut self) -> IoResult<i8> {
         Ok(self.read_u8()? as i8)
     }
-
+    
     fn read_i16(&mut self) -> IoResult<i16> {
         Ok(self.read_u16()? as i16)
     }
-
+    
     fn read_i24(&mut self) -> IoResult<i32> {
         let value = self.read_u24()? as i32;
         // Sign extend 24-bit to 32-bit
@@ -852,90 +726,81 @@ impl<R: Read> BinaryReader for R {
             Ok(value)
         }
     }
-
+    
     fn read_i32(&mut self) -> IoResult<i32> {
         Ok(self.read_u32()? as i32)
     }
-
+    
     fn read_exact(&mut self, buf: &mut [u8]) -> IoResult<()> {
         Read::read_exact(self, buf)
-    }
-
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> IoResult<usize> {
-        Read::read_to_end(self, buf)
     }
 }
 
 pub trait Serializable {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()>;
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> where Self: Sized;
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> where Self: Sized;
     fn serialized_size(&self) -> usize;
-}"""
+}'''
 
 
 def generate_message_implementations(messages: List[RustMessage]) -> str:
     """Generate Serializable implementations for all messages"""
     impl_code = []
-
+    
     for msg in messages:
+        if msg.alias:
+            continue
+            
         # Generate Serializable implementation for message struct
         if msg.fields:
-            impl_code.append(f"""impl Serializable for {msg.rust_name} {{
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {{""")
+            impl_code.append(f'''impl Serializable for {msg.rust_name} {{
+    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {{''')
             for field in msg.fields:
-                lines = field.serialize_expr.strip().split("\n")
+                lines = field.serialize_expr.strip().split('\n')
                 for line in lines:
                     if line.strip():
-                        impl_code.append(f"        {line.strip()}")
+                        impl_code.append(f'        {line.strip()}')
         else:
-            impl_code.append(f"""impl Serializable for {msg.rust_name} {{
-    fn serialize<W: BinaryWriter>(&self, _writer: &mut W) -> Result<()> {{""")
-
-        impl_code.append("""        Ok(())
-    }""")
-
+            impl_code.append(f'''impl Serializable for {msg.rust_name} {{
+    fn serialize<W: BinaryWriter>(&self, _writer: &mut W) -> Result<()> {{''')
+        
+        impl_code.append('''        Ok(())
+    }''')
+        
         param_name = "reader" if msg.fields else "_reader"
-        impl_code.append(f"""
-    fn deserialize<R: BinaryReader>({param_name}: &mut R) -> Result<Self> {{""")
-
+        impl_code.append(f'''    
+    fn deserialize<R: BinaryReader>({param_name}: &mut R) -> Result<Self> {{''')
+        
         if msg.fields:
             for field in msg.fields:
-                lines = field.deserialize_expr.strip().split("\n")
+                lines = field.deserialize_expr.strip().split('\n')
                 for line in lines:
                     if line.strip():
-                        impl_code.append(f"        {line.strip()}")
-
-        impl_code.append(f"""        Ok({msg.rust_name} {{""")
-
+                        impl_code.append(f'        {line.strip()}')
+        
+        impl_code.append(f'''        Ok({msg.rust_name} {{''')
+        
         if msg.fields:
             for field in msg.fields:
-                impl_code.append(f"            {field.name},")
-
-        impl_code.append("""        })
+                impl_code.append(f'            {field.name},')
+        
+        impl_code.append('''        })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {""")
-
+    
+    fn serialized_size(&self) -> usize {''')
+        
         if msg.fields:
             size_exprs = []
             for field in msg.fields:
                 size_exprs.append(field.size_expr)
-            impl_code.append(f"        {' + '.join(size_exprs)}")
+            impl_code.append(f'        {" + ".join(size_exprs)}')
         else:
-            impl_code.append("        0")
-
-        impl_code.append("""    }
-}""")
-        impl_code.append("")
-
+            impl_code.append('        0')
+        
+        impl_code.append('''    }
+}''')
+        impl_code.append('')
+    
     # Generate struct implementations if any (deduplicated)
     implemented_structs = set()
     for msg in messages:
@@ -943,155 +808,115 @@ def generate_message_implementations(messages: List[RustMessage]) -> str:
             if struct_name in implemented_structs:
                 continue
             implemented_structs.add(struct_name)
-
-            impl_code.append(f"""impl Serializable for {struct_name} {{
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {{""")
-
+            
+            impl_code.append(f'''impl Serializable for {struct_name} {{
+    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {{''')
+            
             for field in fields:
-                lines = field.serialize_expr.strip().split("\n")
+                lines = field.serialize_expr.strip().split('\n')
                 for line in lines:
                     if line.strip():
-                        impl_code.append(f"        {line.strip()}")
-
-            impl_code.append("""        Ok(())
+                        impl_code.append(f'        {line.strip()}')
+            
+            impl_code.append('''        Ok(())
     }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {""")
-
+    
+    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {''')
+            
             for field in fields:
-                lines = field.deserialize_expr.strip().split("\n")
+                lines = field.deserialize_expr.strip().split('\n')
                 for line in lines:
                     if line.strip():
-                        impl_code.append(f"        {line.strip()}")
-
-            impl_code.append(f"""        Ok({struct_name} {{""")
-
+                        impl_code.append(f'        {line.strip()}')
+            
+            impl_code.append(f'''        Ok({struct_name} {{''')
+            
             for field in fields:
-                impl_code.append(f"            {field.name},")
-
-            impl_code.append("""        })
+                impl_code.append(f'            {field.name},')
+            
+            impl_code.append('''        })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {""")
-
+    
+    fn serialized_size(&self) -> usize {''')
+            
             if fields:
                 size_exprs = []
                 for field in fields:
                     size_exprs.append(field.size_expr)
-                impl_code.append(f"        {' + '.join(size_exprs)}")
+                impl_code.append(f'        {" + ".join(size_exprs)}')
             else:
-                impl_code.append("        0")
-
-            impl_code.append("""    }
-}""")
-            impl_code.append("")
-
+                impl_code.append('        0')
+            
+            impl_code.append('''    }
+}''')
+            impl_code.append('')
+    
     # Generate Message enum implementation
-    impl_code.append("""impl Message {
+    concrete_messages = [msg for msg in messages if not msg.alias]
+    
+    impl_code.append('''impl Message {
     pub fn message_type(&self) -> MessageType {
-        match self {""")
-
-    for msg in messages:
-        impl_code.append(
-            f"            Message::{msg.rust_name} {{ .. }} => MessageType::{msg.enum_name},"
-        )
-
-    impl_code.append("""        }
+        match self {''')
+    
+    for msg in concrete_messages:
+        impl_code.append(f'            Message::{msg.rust_name}(_) => MessageType::{msg.enum_name},')
+    
+    impl_code.append('''        }
     }
-
-    pub fn user_id(&self) -> u8 {
-        match self {""")
-
-    for msg in messages:
-        impl_code.append(
-            f"            Message::{msg.rust_name} {{ user_id, .. }} => *user_id,"
-        )
-
-    impl_code.append("""        }
-    }
-
+    
     pub fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        // Calculate payload size
-        let payload_size = match self {""")
-
-    for msg in messages:
-        impl_code.append(
-            f"            Message::{msg.rust_name} {{ payload, .. }} => payload.serialized_size(),"
-        )
-
-    impl_code.append("""        };
-
-        // Write message header (length + type + user_id)
-        let header = MessageHeader::new(
-            self.message_type() as u8,
-            self.user_id(),
-            payload_size as u16
-        );
-        header.serialize(writer)?;
-
+        // Write message type first
+        writer.write_u8(self.message_type() as u8)?;
+        
         // Write message payload
-        match self {""")
-
-    for msg in messages:
-        impl_code.append(
-            f"            Message::{msg.rust_name} {{ payload, .. }} => payload.serialize(writer),"
-        )
-
-    impl_code.append("""        }
+        match self {''')
+    
+    for msg in concrete_messages:
+        impl_code.append(f'            Message::{msg.rust_name}(msg) => msg.serialize(writer),')
+    
+    impl_code.append('''        }
     }
-
+    
     pub fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let header = MessageHeader::deserialize(reader)?;
-        let msg_type = MessageType::from_u8(header.message_type)?;
-
-        match msg_type {""")
-
-    for msg in messages:
-        impl_code.append(
-            f"            MessageType::{msg.enum_name} => Ok(Message::{msg.rust_name} {{ user_id: header.user_id, payload: {msg.rust_name}::deserialize_with_header(&header, reader)? }}),"
-        )
-
-    impl_code.append("""        }
+        let msg_type = MessageType::from_u8(reader.read_u8()?)?;
+        
+        match msg_type {''')
+    
+    for msg in concrete_messages:
+        impl_code.append(f'            MessageType::{msg.enum_name} => Ok(Message::{msg.rust_name}({msg.rust_name}::deserialize(reader)?)),')
+    
+    impl_code.append('''        }
     }
-
+    
     pub fn serialized_size(&self) -> usize {
-        MessageHeader::SIZE + match self {""")
-
-    for msg in messages:
-        impl_code.append(
-            f"            Message::{msg.rust_name} {{ payload, .. }} => payload.serialized_size(),"
-        )
-
-    impl_code.append("""        }
+        1 + match self {''')
+    
+    for msg in concrete_messages:
+        impl_code.append(f'            Message::{msg.rust_name}(msg) => msg.serialized_size(),')
+    
+    impl_code.append('''        }
     }
-}""")
-
-    return "\n".join(impl_code)
+}''')
+    
+    return '\n'.join(impl_code)
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <protocol.yaml> <output.rs>")
         sys.exit(1)
-
+    
     protocol_path = sys.argv[1]
     output_path = sys.argv[2]
-
+    
     # Load protocol definition
     protocol = protogen.load_protocol_definition(protocol_path)
-
+    
     # Generate Rust code
     rust_code = generate_rust_code(protocol)
-
+    
     # Write to output file
-    with open(output_path, "w") as f:
+    with open(output_path, 'w') as f:
         f.write(rust_code)
-
+    
     print(f"Generated Rust code written to {output_path}")

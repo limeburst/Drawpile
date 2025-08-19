@@ -1,0 +1,93 @@
+2025-08-14T13:41:15Z Info/Status 0;::ffff:192.168.86.91;: New TCP client connected
+SEND [:0] servercommand (len=197) payload='{"flags":["MULTI","AVATAR","MBANIMPEX","LOOKUP","CINFO"],"message":"Drawpile server 2.3.0-beta.2-11-g88eae6155-dirty","methods":{"guest":{"actions":["join","host"]}},"type":"login","version":4}'
+RECV [:0] servercommand (len=268) payload='{"args":["192.168.86.91",{"app_version":"2.3.0-beta.2","capabilities":"KEEPALIVE,THUMBNAIL","m":"Q0NBMTFDMzctMzQ2MC01MkFFLThFNTgtRTkzQTI3NzgwMzcz","os":"darwin","protocol_version":"dp:4.25.1","qt_version":"6","s":"66073abb5e5b430a979493ad1ef0db82"}],"cmd":"cinfo"}'
+SEND [:0] servercommand (len=75) payload='{"cinfo":{"browser":false},"message":"Client info OK!","type":"result"}'
+2025-08-14T13:41:15Z Info/ClientInfo 0;::ffff:192.168.86.91;: {"address":"::ffff:192.168.86.91","app_version":"2.3.0-beta.2","m":"Q0NBMTFDMzctMzQ2MC01MkFFLThFNTgtRTkzQTI3NzgwMzcz","os":"darwin","protocol_version":"dp:4.25.1","qt_version":"6","s":"66073abb5e5b430a979493ad1ef0db82"}
+RECV [:0] servercommand (len=60) payload='{"cmd":"lookup","kwargs":{"nsfm":false,"password":true}}'
+SEND [:0] servercommand (len=65) payload='{"lookup":"host","message":"Host lookup OK!","type":"result"}'
+RECV [:0] servercommand (len=68) payload='{"args":["limeburst"],"cmd":"ident","kwargs":{"intent":"guest"}}'
+SEND [limeburst:0] servercommand (len=146) payload='{"flags":["WEBSESSION","WEBHOST","HOST","WEB"],"guest":true,"ident":"limeburst","message":"Guest login OK!","state":"identOk","type":"result"}'
+SEND [limeburst:0] servercommand (len=54) payload='{"message":"Welcome","sessions":[],"type":"login"}'
+
+RECV [limeburst:0] servercommand (len=309) payload='{"cmd":"host","kwargs":{"app_version":"2.3.0-beta.2","capabilities":"KEEPALIVE,THUMBNAIL","m":"Q0NBMTFDMzctMzQ2MC01MkFFLThFNTgtRTkzQTI3NzgwMzcz","os":"darwin","password":"limeburst","protocol":"dp:4.25.1","protocol_version":"dp:4.25.1","qt_version":"6","s":"66073abb5e5b430a979493ad1ef0db82","user_id":1}}'
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] servercommand (len=372) contents (hex): 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 48 35 d7 02 01 00 00 00 70 01 7b 22 63 6f 6e 66 69 67 22 3a 7b 22 61 6c 6c 6f 77 49 64 6c 65 4f 76 65 72 72 69 64 65 22 3a 74 72 75 65 2c 22 61 75 74 68 4f 6e 6c 79 22 3a 66 61 6c 73 65 2c 22 61 75 74 6f 74 69 74 6c 65 22 3a 66 61 6c 73 65 2c 22 63 6c 6f 73 65 64 22 3a 66 61 6c 73 65 2c 22 64 65 70 75 74 69 65 73 22 3a 66 61 6c 73 65 2c 22 66 6f 72 63 65 4e 73 66 6d 22 3a 66 61 6c 73 65 2c 22 68 61 73 4f 70 77 6f 72 64 22 3a 66 61 6c 73 65 2c 22 68 61 73 50 61 73 73 77 6f 72 64 22 3a 66 61 6c 73 65 2c 22 69 64 6c 65 4f 76 65 72 72 69 64 65 22 3a 66 61 6c 73 65 2c 22 69 64 6c 65 54 69 6d 65 4c 69 6d 69 74 22 3a 30 2c 22 69 6e 76 69 74 65 73 22 3a 66 61 6c 73 65 2c 22 6d 61 78 55 73 65 72 43 6f 75 6e 74 22 3a 32 35 34 2c 22 6e 73 66 6d 22 3a 66 61 6c 73 65 2c 22 70 65 72 73 69 73 74 65 6e 74 22 3a 66 61 6c 73 65 2c 22 70 72 65 73 65 72 76 65 43 68 61 74 22 3a 66 61 6c 73 65 2c 22 72 65 73 65 74 54 68 72 65 73 68 6f 6c 64 22 3a 31 35 37 32 38 36 34 30 2c 22 72 65 73 65 74 54 68 72 65 73 68 6f 6c 64 42 61 73 65 22 3a 30 2c 22 74 69 74 6c 65 22 3a 22 22 7d
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=32) payload='{"size":372,"type":"status"}'
+
+
+SEND [limeburst:1] servercommand (len=422) payload=
+2025-08-14T13:41:15Z Info/Status 01k2md0eky28q86ns4wva5fs8x: Session  created by limeburst
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=127) payload='{"level":"Info","message":"Session  created by limeburst","timestamp":"2025-08-14T13:41:15Z","topic":"Status","type":"log"}'
+SEND [limeburst:1] servercommand (len=145) payload='{"join":{"authId":"","flags":[],"id":"01k2md0eky28q86ns4wva5fs8x","user":1},"message":"Starting new session!","state":"host","type":"result"}'
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] join (len=15) contents (hex): 01 00 00 00 20 00 00 00 01 00 00 00 00 00 00
+SEND [limeburst:1] join (len=15) data=00 0b 20 01 00 09 6c 69 6d 65 62 75 72 73 74 payload=(binary)
+2025-08-14T13:41:15Z Info/Op 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: Made operator by the server
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=142) payload='{"level":"Info","message":"Made operator by the server","timestamp":"2025-08-14T13:41:15Z","topic":"Op","type":"log","user":"1;limeburst"}'
+SEND [limeburst:1] servercommand (len=142) payload='{"level":"Info","message":"Made operator by the server","timestamp":"2025-08-14T13:41:15Z","topic":"Op","type":"log","user":"1;limeburst"}'
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=108) payload='{"P":{"target":"limeburst"},"T":"opgive","message":"limeburst made operator by the server","type":"msg"}'
+SEND [limeburst:1] servercommand (len=108) payload='{"P":{"target":"limeburst"},"T":"opgive","message":"limeburst made operator by the server","type":"msg"}'
+SEND [limeburst:1] servercommand (len=47) payload='{"config":{"auth":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=50) payload='{"config":{"banlist":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=53) payload='{"config":{"invitelist":[]},"type":"sessionconf"}'
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] sessionowner (len=5) contents (hex): 01 00 00 00 22
+SEND [limeburst:1] sessionowner (len=5) data=00 01 22 00 01 payload=(binary)
+SEND [limeburst:1] servercommand (len=127) payload='{"level":"Info","message":"Session  created by limeburst","timestamp":"2025-08-14T13:41:15Z","topic":"Status","type":"log"}'
+SEND [limeburst:1] servercommand (len=142) payload='{"level":"Info","message":"Made operator by the server","timestamp":"2025-08-14T13:41:15Z","topic":"Op","type":"log","user":"1;limeburst"}'
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=56) payload='{"config":{"announcements":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=56) payload='{"config":{"announcements":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=50) payload='{"config":{"banlist":[]},"type":"sessionconf"}'
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=48) payload='{"config":{"muted":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=48) payload='{"config":{"muted":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=47) payload='{"config":{"auth":[]},"type":"sessionconf"}'
+SEND [limeburst:1] servercommand (len=53) payload='{"config":{"invitelist":[]},"type":"sessionconf"}'
+2025-08-14T13:41:15Z Info/Join 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: Joined session
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=131) payload='{"level":"Info","message":"Joined session","timestamp":"2025-08-14T13:41:15Z","topic":"Join","type":"log","user":"1;limeburst"}'
+SEND [limeburst:1] servercommand (len=131) payload='{"level":"Info","message":"Joined session","timestamp":"2025-08-14T13:41:15Z","topic":"Join","type":"log","user":"1;limeburst"}'
+2025-08-14T13:41:15Z Info/ClientInfo 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: {"address":"::ffff:192.168.86.91","app_version":"2.3.0-beta.2","m":"Q0NBMTFDMzctMzQ2MC01MkFFLThFNTgtRTkzQTI3NzgwMzcz","os":"darwin","protocol_version":"dp:4.25.1","qt_version":"6","s":"66073abb5e5b430a979493ad1ef0db82"}
+RECV [limeburst:1] servercommand (len=82) payload='{"cmd":"sessionconf","kwargs":{"autotitle":true,"title":"limeburst Drawpile"}}'
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] servercommand (len=387) contents (hex): 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 48 35 d7 02 01 00 00 00 7f 01 7b 22 63 6f 6e 66 69 67 22 3a 7b 22 61 6c 6c 6f 77 49 64 6c 65 4f 76 65 72 72 69 64 65 22 3a 74 72 75 65 2c 22 61 75 74 68 4f 6e 6c 79 22 3a 66 61 6c 73 65 2c 22 61 75 74 6f 74 69 74 6c 65 22 3a 74 72 75 65 2c 22 63 6c 6f 73 65 64 22 3a 66 61 6c 73 65 2c 22 64 65 70 75 74 69 65 73 22 3a 66 61 6c 73 65 2c 22 66 6f 72 63 65 4e 73 66 6d 22 3a 66 61 6c 73 65 2c 22 68 61 73 4f 70 77 6f 72 64 22 3a 66 61 6c 73 65 2c 22 68 61 73 50 61 73 73 77 6f 72 64 22 3a 74 72 75 65 2c 22 69 64 6c 65 4f 76 65 72 72 69 64 65 22 3a 66 61 6c 73 65 2c 22 69 64 6c 65 54 69 6d 65 4c 69 6d 69 74 22 3a 30 2c 22 69 6e 76 69 74 65 73 22 3a 74 72 75 65 2c 22 6d 61 78 55 73 65 72 43 6f 75 6e 74 22 3a 32 35 34 2c 22 6e 73 66 6d 22 3a 66 61 6c 73 65 2c 22 70 65 72 73 69 73 74 65 6e 74 22 3a 66 61 6c 73 65 2c 22 70 72 65 73 65 72 76 65 43 68 61 74 22 3a 66 61 6c 73 65 2c 22 72 65 73 65 74 54 68 72 65 73 68 6f 6c 64 22 3a 31 35 37 32 38 36 34 30 2c 22 72 65 73 65 74 54 68 72 65 73 68 6f 6c 64 42 61 73 65 22 3a 30 2c 22 74 69 74 6c 65 22 3a 22 6c 69 6d 65 62 75 72 73 74 20 44 72 61 77 70 69 6c 65 22 7d
+SEND [limeburst:1] servercommand (len=387) payload='{"config":{"allowIdleOverride":true,"authOnly":false,"autotitle":true,"closed":false,"deputies":false,"forceNsfm":false,"hasOpword":false,"hasPassword":true,"idleOverride":false,"idleTimeLimit":0,"invites":true,"maxUserCount":254,"nsfm":false,"persistent":false,"preserveChat":false,"resetThreshold":15728640,"resetThresholdBase":0,"title":"limeburst Drawpile"},"type":"sessionconf"}'
+2025-08-14T13:41:16Z Info/Status 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: Changed autotitle to 'limeburst Drawpile'
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=160) payload='{"level":"Info","message":"Changed autotitle to 'limeburst Drawpile'","timestamp":"2025-08-14T13:41:16Z","topic":"Status","type":"log","user":"1;limeburst"}'
+SEND [limeburst:1] servercommand (len=160) payload='{"level":"Info","message":"Changed autotitle to 'limeburst Drawpile'","timestamp":"2025-08-14T13:41:16Z","topic":"Status","type":"log","user":"1;limeburst"}'
+RECV [limeburst:1] undodepth (len=5) payload='<'
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] undodepth (len=5) contents (hex): 01 00 00 00 4a
+SEND [limeburst:1] undodepth (len=5) payload='<'
+RECV [limeburst:1] resize (len=20) data=00 10 81 00 00 00 00 00 00 00 07 d0 00 00 07 d0 00 00 00 00 payload=(binary)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] resize (len=20) contents (hex): 01 00 00 00 81 01 00 00 00 00 00 00 00 00 00 00 18 35 d7 02
+RECV [limeburst:1] layertreecreate (len=25) data=00 15 a2 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 4c 61 79 65 72 20 31 payload=(binary)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] layertreecreate (len=25) contents (hex): 01 00 00 00 a2 01 00 00 00 00 00 00 00 00 00 00 18 35 d7 02 01 00 00 00 15
+RECV [limeburst:1] layerattr (len=11) data=00 07 83 00 00 00 01 00 00 ff 01 payload=(binary)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] layerattr (len=11) contents (hex): 01 00 00 00 83 01 00 00 00 00 00
+RECV [limeburst:1] canvasbackgroundzstd (len=8) data=00 04 b4 00 ff ff ff ff payload=(binary)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] canvasbackgroundzstd (len=8) contents (hex): 01 00 00 00 b4 01 00 00
+RECV [limeburst:1] featureaccess (len=16) data=00 0c 46 01 03 03 00 00 00 03 03 03 03 00 03 03 payload=(binary)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] featureaccess (len=16) contents (hex): 01 00 00 00 46 01 00 00 01 00 00 00 00 00 00 00
+SEND [limeburst:1] featureaccess (len=16) data=00 0c 46 01 03 03 00 00 00 03 03 03 03 00 03 03 payload=(binary)
+RECV [limeburst:1] featurelimits (len=36) data=00 20 4d 01 00 00 03 e8 00 00 00 ff 00 00 00 ff 00 00 00 ff 00 00 7f ff 00 00 03 e8 00 00 03 e8 00 00 03 e8 payload=(binary)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] featurelimits (len=36) contents (hex): 01 00 00 00 4d 01 00 00 01 00 00 00 00 00 00 00 18 35 d7 02 01 00 00 00 20 00 00 00 00 00 00 00 00 00 03 e8
+SEND [limeburst:1] featurelimits (len=36) data=00 20 4d 01 00 00 03 e8 00 00 00 ff 00 00 00 ff 00 00 00 ff 00 00 7f ff 00 00 03 e8 00 00 03 e8 00 00 03 e8 payload=(binary)
+RECV [limeburst:1] useracl (len=4) payload=(empty)
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] useracl (len=4) contents (hex): 01 00 00 00
+SEND [limeburst:1] useracl (len=4) payload=(empty)
+RECV [limeburst:1] servercommand (len=27) payload='{"cmd":"init-complete"}'
+2025-08-14T13:41:16Z Debug/Status 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: init-complete
+2025-08-14T13:41:16Z Info/Status 01k2md0eky28q86ns4wva5fs8x: Session initialized with size 904 bytes
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=137) payload='{"level":"Info","message":"Session initialized with size 904 bytes","timestamp":"2025-08-14T13:41:16Z","topic":"Status","type":"log"}'
+SEND [limeburst:1] servercommand (len=137) payload='{"level":"Info","message":"Session initialized with size 904 bytes","timestamp":"2025-08-14T13:41:16Z","topic":"Status","type":"log"}'
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=32) payload='{"size":904,"type":"status"}'
+SEND [limeburst:1] servercommand (len=32) payload='{"size":904,"type":"status"}'
+^C2025-08-14T14:06:35Z Info/Status Stopping server and kicking out 1 users...
+2025-08-14T14:06:35Z Info/Leave 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: Server shutting down (SessionServer::stopAll)
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=163) payload='{"level":"Info","message":"Server shutting down (SessionServer::stopAll)","timestamp":"2025-08-14T14:06:35Z","topic":"Leave","type":"log","user":"1;limeburst"}'
+SEND [limeburst:1] servercommand (len=163) payload='{"level":"Info","message":"Server shutting down (SessionServer::stopAll)","timestamp":"2025-08-14T14:06:35Z","topic":"Leave","type":"log","user":"1;limeburst"}'
+2025-08-14T14:06:35Z Info/Leave 1;::ffff:192.168.86.91;limeburst@01k2md0eky28q86ns4wva5fs8x: Left session
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=130) payload='{"level":"Info","message":"Left session","timestamp":"2025-08-14T14:06:35Z","topic":"Leave","type":"log","user":"1;limeburst"}'
+addMessageInternal [01k2md0eky28q86ns4wva5fs8x] leave (len=4) contents (hex): 01 00 00 00
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=32) payload='{"size":908,"type":"status"}'
+2025-08-14T14:06:35Z Info/Status 01k2md0eky28q86ns4wva5fs8x: Last user left.
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=113) payload='{"level":"Info","message":"Last user left.","timestamp":"2025-08-14T14:06:35Z","topic":"Status","type":"log"}'
+2025-08-14T14:06:35Z Info/Status 01k2md0eky28q86ns4wva5fs8x: Closing non-persistent session.
+BROADCAST [01k2md0eky28q86ns4wva5fs8x] servercommand (len=129) payload='{"level":"Info","message":"Closing non-persistent session.","timestamp":"2025-08-14T14:06:35Z","topic":"Status","type":"log"}'
+All sent, gracefully disconnecting.
+2025-08-14T14:06:35Z Info/Status Server stopped.
+limeburst@mac build % 

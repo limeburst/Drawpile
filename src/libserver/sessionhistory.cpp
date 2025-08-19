@@ -158,6 +158,10 @@ bool SessionHistory::addEmergencyMessage(const net::Message &msg)
 
 void SessionHistory::addMessageInternal(const net::Message &msg, size_t bytes)
 {
+	QByteArray msgBytes(reinterpret_cast<const char*>(msg.get()), msg.length());
+	QString msgHex = msgBytes.toHex(' ');
+	qInfo("addMessageInternal [%s] %s (len=%zu) contents (hex): %s", qPrintable(m_id), qPrintable(msg.typeName()), bytes, qPrintable(msgHex));
+
 	m_sizeInBytes += bytes;
 	++m_lastIndex;
 	historyAdd(msg);

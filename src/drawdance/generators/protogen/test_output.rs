@@ -7,10 +7,8 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 
-use std::io::{Read, Write, Result as IoResult};
-
-use std::error::Error;
-use std::fmt;
+use std::io::{Read, Write, Result as IoResult, Error, ErrorKind};
+use std::convert::TryFrom;
 
 #[derive(Debug)]
 pub enum ProtocolError {
@@ -18,26 +16,6 @@ pub enum ProtocolError {
     InvalidEnumValue(u8),
     InvalidMessageType(u8),
     InvalidStringData,
-}
-
-impl fmt::Display for ProtocolError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ProtocolError::IoError(e) => write!(f, "IO error: {}", e),
-            ProtocolError::InvalidEnumValue(v) => write!(f, "Invalid enum value: {}", v),
-            ProtocolError::InvalidMessageType(v) => write!(f, "Invalid message type: {}", v),
-            ProtocolError::InvalidStringData => write!(f, "Invalid string data"),
-        }
-    }
-}
-
-impl Error for ProtocolError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ProtocolError::IoError(e) => Some(e),
-            _ => None,
-        }
-    }
 }
 
 impl From<std::io::Error> for ProtocolError {
@@ -78,13 +56,13 @@ impl DisconnectReason {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum DataType {
-    UserInfo = 0,
+    Userinfo = 0,
 }
 
 impl DataType {
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(DataType::UserInfo),
+            0 => Ok(DataType::Userinfo),
             _ => Err(ProtocolError::InvalidEnumValue(value)),
         }
     }
@@ -92,32 +70,32 @@ impl DataType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum LocalChangeType {
-    LayerVisibility = 0,
-    BackgroundTile = 1,
-    ViewMode = 2,
-    ActiveLayer = 3,
-    ActiveFrame = 4,
-    OnionSkins = 5,
-    TrackVisibility = 6,
-    TrackOnionSkin = 7,
-    LayerSketch = 8,
-    LayerAlphaLock = 9,
+pub enum LocalchangeType {
+    Layervisibility = 0,
+    Backgroundtile = 1,
+    Viewmode = 2,
+    Activelayer = 3,
+    Activeframe = 4,
+    Onionskins = 5,
+    Trackvisibility = 6,
+    Trackonionskin = 7,
+    Layersketch = 8,
+    Layeralphalock = 9,
 }
 
-impl LocalChangeType {
+impl LocalchangeType {
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(LocalChangeType::LayerVisibility),
-            1 => Ok(LocalChangeType::BackgroundTile),
-            2 => Ok(LocalChangeType::ViewMode),
-            3 => Ok(LocalChangeType::ActiveLayer),
-            4 => Ok(LocalChangeType::ActiveFrame),
-            5 => Ok(LocalChangeType::OnionSkins),
-            6 => Ok(LocalChangeType::TrackVisibility),
-            7 => Ok(LocalChangeType::TrackOnionSkin),
-            8 => Ok(LocalChangeType::LayerSketch),
-            9 => Ok(LocalChangeType::LayerAlphaLock),
+            0 => Ok(LocalchangeType::Layervisibility),
+            1 => Ok(LocalchangeType::Backgroundtile),
+            2 => Ok(LocalchangeType::Viewmode),
+            3 => Ok(LocalchangeType::Activelayer),
+            4 => Ok(LocalchangeType::Activeframe),
+            5 => Ok(LocalchangeType::Onionskins),
+            6 => Ok(LocalchangeType::Trackvisibility),
+            7 => Ok(LocalchangeType::Trackonionskin),
+            8 => Ok(LocalchangeType::Layersketch),
+            9 => Ok(LocalchangeType::Layeralphalock),
             _ => Err(ProtocolError::InvalidEnumValue(value)),
         }
     }
@@ -125,20 +103,20 @@ impl LocalChangeType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum SetMetadataIntField {
+pub enum SetmetadataintField {
     Dpix = 0,
     Dpiy = 1,
     Framerate = 2,
-    FrameCount = 3,
+    Framecount = 3,
 }
 
-impl SetMetadataIntField {
+impl SetmetadataintField {
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(SetMetadataIntField::Dpix),
-            1 => Ok(SetMetadataIntField::Dpiy),
-            2 => Ok(SetMetadataIntField::Framerate),
-            3 => Ok(SetMetadataIntField::FrameCount),
+            0 => Ok(SetmetadataintField::Dpix),
+            1 => Ok(SetmetadataintField::Dpiy),
+            2 => Ok(SetmetadataintField::Framerate),
+            3 => Ok(SetmetadataintField::Framecount),
             _ => Err(ProtocolError::InvalidEnumValue(value)),
         }
     }
@@ -146,16 +124,16 @@ impl SetMetadataIntField {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum TransformRegionMode {
+pub enum TransformregionMode {
     Nearest = 0,
     Bilinear = 1,
 }
 
-impl TransformRegionMode {
+impl TransformregionMode {
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(TransformRegionMode::Nearest),
-            1 => Ok(TransformRegionMode::Bilinear),
+            0 => Ok(TransformregionMode::Nearest),
+            1 => Ok(TransformregionMode::Bilinear),
             _ => Err(ProtocolError::InvalidEnumValue(value)),
         }
     }
@@ -163,16 +141,16 @@ impl TransformRegionMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum KeyFrameSetSource {
+pub enum KeyframesetSource {
     Layer = 0,
-    KeyFrame = 1,
+    Keyframe = 1,
 }
 
-impl KeyFrameSetSource {
+impl KeyframesetSource {
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(KeyFrameSetSource::Layer),
-            1 => Ok(KeyFrameSetSource::KeyFrame),
+            0 => Ok(KeyframesetSource::Layer),
+            1 => Ok(KeyframesetSource::Keyframe),
             _ => Err(ProtocolError::InvalidEnumValue(value)),
         }
     }
@@ -180,7 +158,7 @@ impl KeyFrameSetSource {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum SelectionPutOp {
+pub enum SelectionputOp {
     Replace = 0,
     Unite = 1,
     Intersect = 2,
@@ -188,14 +166,31 @@ pub enum SelectionPutOp {
     Complement = 4,
 }
 
-impl SelectionPutOp {
+impl SelectionputOp {
     pub fn from_u8(value: u8) -> Result<Self> {
         match value {
-            0 => Ok(SelectionPutOp::Replace),
-            1 => Ok(SelectionPutOp::Unite),
-            2 => Ok(SelectionPutOp::Intersect),
-            3 => Ok(SelectionPutOp::Exclude),
-            4 => Ok(SelectionPutOp::Complement),
+            0 => Ok(SelectionputOp::Replace),
+            1 => Ok(SelectionputOp::Unite),
+            2 => Ok(SelectionputOp::Intersect),
+            3 => Ok(SelectionputOp::Exclude),
+            4 => Ok(SelectionputOp::Complement),
+            _ => Err(ProtocolError::InvalidEnumValue(value)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TransformregionMode {
+    Nearest = 0,
+    Bilinear = 1,
+}
+
+impl TransformregionMode {
+    pub fn from_u8(value: u8) -> Result<Self> {
+        match value {
+            0 => Ok(TransformregionMode::Nearest),
+            1 => Ok(TransformregionMode::Bilinear),
             _ => Err(ProtocolError::InvalidEnumValue(value)),
         }
     }
@@ -347,49 +342,8 @@ impl MessageType {
     }
 }
 
-/// Message header structure following Drawpile protocol format:
-/// uint16 payload length
-/// uint8  message type
-/// uint8  context (user) ID  
 #[derive(Debug, Clone, PartialEq)]
-pub struct MessageHeader {
-    pub payload_length: u16,
-    pub message_type: u8,
-    pub user_id: u8,
-}
-
-impl MessageHeader {
-    pub fn new(message_type: u8, user_id: u8, payload_length: u16) -> Self {
-        Self {
-            payload_length,
-            message_type,
-            user_id,
-        }
-    }
-
-    pub fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u16(self.payload_length)?;
-        writer.write_u8(self.message_type)?;
-        writer.write_u8(self.user_id)?;
-        Ok(())
-    }
-
-    pub fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let payload_length = reader.read_u16()?;
-        let message_type = reader.read_u8()?;
-        let user_id = reader.read_u8()?;
-        Ok(Self {
-            payload_length,
-            message_type,
-            user_id,
-        })
-    }
-
-    pub const SIZE: usize = 4; // 2 + 1 + 1 bytes
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ClassicDab {
+pub struct Classicdab {
     pub x: i8,
     pub y: i8,
     pub size: u32,
@@ -398,7 +352,7 @@ pub struct ClassicDab {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct PixelDab {
+pub struct Pixeldab {
     pub x: i8,
     pub y: i8,
     pub size: u16,
@@ -406,7 +360,15 @@ pub struct PixelDab {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MyPaintDab {
+pub struct Pixeldab {
+    pub x: i8,
+    pub y: i8,
+    pub size: u16,
+    pub opacity: u8,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Mypaintdab {
     pub x: i8,
     pub y: i8,
     pub size: u32,
@@ -417,7 +379,7 @@ pub struct MyPaintDab {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct MyPaintBlendDab {
+pub struct Mypaintblenddab {
     pub x: i8,
     pub y: i8,
     pub size: u32,
@@ -437,7 +399,7 @@ pub struct MyPaintBlendDab {
 /// - setting session parameters (e.g. max user count and password)
 /// - sending administration commands (e.g. kick user)
 #[derive(Debug, Clone, PartialEq)]
-pub struct ServerCommand {
+pub struct Servercommand {
     pub msg: String,
 }
 
@@ -468,7 +430,7 @@ pub struct Ping {
 /// run into an idle timeout if its upload queue is too saturated to
 /// actually manage sending out a ping.
 #[derive(Debug, Clone, PartialEq)]
-pub struct KeepAlive {
+pub struct Keepalive {
 }
 
 /// Message from the client to the server to provide a canvas
@@ -512,7 +474,7 @@ pub struct Leave {
 /// it does not contain any duplicates or non-existing users and can be trusted
 /// without checking the access control list.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SessionOwner {
+pub struct Sessionowner {
     pub users: Vec<u8>,
 }
 
@@ -541,7 +503,7 @@ pub struct Chat {
 /// it does not contain any duplicates or non-existing users and can be trusted
 /// without checking the access control list.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrustedUsers {
+pub struct Trustedusers {
     pub users: Vec<u8>,
 }
 
@@ -553,7 +515,7 @@ pub struct TrustedUsers {
 /// All users should truncate their own session history when receiving this message,
 /// since undos cannot cross the reset boundary.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SoftReset {
+pub struct Softreset {
 }
 
 /// A private chat message
@@ -564,7 +526,7 @@ pub struct SoftReset {
 /// 
 /// Private messages always bypass the session history.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PrivateChat {
+pub struct Privatechat {
     pub target: u8,
     pub oflags: u8,
     pub message: String,
@@ -573,7 +535,7 @@ pub struct PrivateChat {
 /// Streamed chunk of session reset messages. The client and server
 /// will negotiate support and compression algorithm.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ResetStream {
+pub struct Resetstream {
     pub data: Vec<u8>,
 }
 
@@ -595,7 +557,7 @@ pub struct Interval {
 /// 
 /// A nonzero persistence indicates the start of the trail and zero the end.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LaserTrail {
+pub struct Lasertrail {
     pub color: u32,
     pub persistence: u8,
 }
@@ -609,7 +571,7 @@ pub struct LaserTrail {
 /// 
 /// The pointer position is divided by 4, like classic brushes.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MovePointer {
+pub struct Movepointer {
     pub x: i32,
     pub y: i32,
 }
@@ -619,7 +581,7 @@ pub struct MovePointer {
 /// This is an opaque meta command that contains a list of users to be locked.
 /// It can only be sent by session operators.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UserACL {
+pub struct Useracl {
     pub users: Vec<u8>,
 }
 
@@ -641,7 +603,7 @@ pub struct UserACL {
 /// As a special case, setting the ACLs of ID 0 sets or clears the canvas
 /// lock. The tier and exclusive user list is not used in this case.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerACL {
+pub struct Layeracl {
     pub id: u32,
     pub flags: u8,
     pub exclusive: Vec<u8>,
@@ -653,7 +615,7 @@ pub struct LayerACL {
 /// is guest. A value of 255 means to leave that tier unchanged. Any
 /// unknown features will be ignored by the client.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FeatureAccessLevels {
+pub struct Featureaccesslevels {
     pub feature_tiers: Vec<u8>,
 }
 
@@ -662,13 +624,13 @@ pub struct FeatureAccessLevels {
 /// The default layer is the one new users default to when logging in.
 /// If no default layer is set, the newest layer will be selected by default.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DefaultLayer {
+pub struct Defaultlayer {
     pub id: u32,
 }
 
 /// Set maximum undo depth
 #[derive(Debug, Clone, PartialEq)]
-pub struct UndoDepth {
+pub struct Undodepth {
     pub depth: u8,
 }
 
@@ -688,14 +650,14 @@ pub struct Data {
 /// setting a local canvas background. Shouldn't be sent over the
 /// network, but will be recorded.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LocalChange {
-    pub msg_type: LocalChangeType,
+pub struct Localchange {
+    pub msg_type: LocalchangeType,
     pub body: Vec<u8>,
 }
 
 /// Change feature limits.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FeatureLimits {
+pub struct Featurelimits {
     pub limits: Vec<i32>,
 }
 
@@ -703,7 +665,7 @@ pub struct FeatureLimits {
 /// 
 /// The client sends an UndoPoint message to signal the start of an undoable sequence.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UndoPoint {
+pub struct Undopoint {
 }
 
 /// Adjust canvas size
@@ -716,7 +678,7 @@ pub struct UndoPoint {
 /// parameters extend or retract their respective borders.
 /// Initial canvas resize should be (0, w, h, 0).
 #[derive(Debug, Clone, PartialEq)]
-pub struct CanvasResize {
+pub struct Canvasresize {
     pub top: i32,
     pub right: i32,
     pub bottom: i32,
@@ -733,7 +695,7 @@ pub struct CanvasResize {
 /// Note: the `fixed` flag is unused since version 2.2. It's functionality is replaced
 /// by the custom timeline feature.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerAttributes {
+pub struct Layerattributes {
     pub id: u32,
     pub sublayer: u8,
     pub flags: u8,
@@ -743,7 +705,7 @@ pub struct LayerAttributes {
 
 /// Change a layer's title
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerRetitle {
+pub struct Layerretitle {
     pub id: u32,
     pub title: String,
 }
@@ -764,7 +726,7 @@ pub struct LayerRetitle {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PutImage {
+pub struct Putimage {
     pub layer: u32,
     pub mode: u8,
     pub x: u32,
@@ -778,7 +740,7 @@ pub struct PutImage {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct FillRect {
+pub struct Fillrect {
     pub layer: u32,
     pub mode: u8,
     pub x: u32,
@@ -798,7 +760,7 @@ pub struct FillRect {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PenUp {
+pub struct Penup {
     pub layer: u32,
 }
 
@@ -809,7 +771,7 @@ pub struct PenUp {
 /// 
 /// The new annotation created with this command is initally empy with a transparent background
 #[derive(Debug, Clone, PartialEq)]
-pub struct AnnotationCreate {
+pub struct Annotationcreate {
     pub id: u16,
     pub x: i32,
     pub y: i32,
@@ -819,7 +781,7 @@ pub struct AnnotationCreate {
 
 /// Change the position and size of an annotation
 #[derive(Debug, Clone, PartialEq)]
-pub struct AnnotationReshape {
+pub struct Annotationreshape {
     pub id: u16,
     pub x: i32,
     pub y: i32,
@@ -834,7 +796,7 @@ pub struct AnnotationReshape {
 /// If an annotation is flagged as protected, it cannot be modified by users
 /// other than the one who created it, or session operators.
 #[derive(Debug, Clone, PartialEq)]
-pub struct AnnotationEdit {
+pub struct Annotationedit {
     pub id: u16,
     pub bg: u32,
     pub flags: u8,
@@ -849,7 +811,7 @@ pub struct AnnotationEdit {
 /// an image and drawing the image with the PutImage command. This ensures
 /// identical rendering on all clients.
 #[derive(Debug, Clone, PartialEq)]
-pub struct AnnotationDelete {
+pub struct Annotationdelete {
     pub id: u16,
 }
 
@@ -863,7 +825,7 @@ pub struct AnnotationDelete {
 /// a reset image with incomplete indirect strokes. Sending a PenUp
 /// command will merge the sublayer.
 #[derive(Debug, Clone, PartialEq)]
-pub struct PutTile {
+pub struct Puttile {
     pub user: u8,
     pub layer: u32,
     pub sublayer: u8,
@@ -878,7 +840,7 @@ pub struct PutTile {
 /// If the payload is exactly 4 bytes long, it should be interpreted as a solid background color.
 /// Otherwise, it is the DEFLATED tile bitmap
 #[derive(Debug, Clone, PartialEq)]
-pub struct CanvasBackground {
+pub struct Canvasbackground {
     pub image: Vec<u8>,
 }
 
@@ -891,14 +853,14 @@ pub struct CanvasBackground {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DrawDabsClassic {
+pub struct Drawdabsclassic {
     pub flags: u8,
     pub layer: u32,
     pub x: i32,
     pub y: i32,
     pub color: u32,
     pub mode: u8,
-    pub dabs: Vec<ClassicDab>,
+    pub dabs: Vec<Classicdab>,
 }
 
 /// Draw round pixel brush dabs
@@ -908,26 +870,14 @@ pub struct DrawDabsClassic {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DrawDabsPixel {
+pub struct Drawdabspixel {
     pub flags: u8,
     pub layer: u32,
     pub x: i32,
     pub y: i32,
     pub color: u32,
     pub mode: u8,
-    pub dabs: Vec<PixelDab>,
-}
-
-/// Draw square pixel brush dabs
-#[derive(Debug, Clone, PartialEq)]
-pub struct DrawDabsPixelSquare {
-    pub flags: u8,
-    pub layer: u32,
-    pub x: i32,
-    pub y: i32,
-    pub color: u32,
-    pub mode: u8,
-    pub dabs: Vec<PixelDab>,
+    pub dabs: Vec<Pixeldab>,
 }
 
 /// Draw MyPaint brush dabs in "normal and eraser" or "pigment and
@@ -949,7 +899,7 @@ pub struct DrawDabsPixelSquare {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DrawDabsMyPaint {
+pub struct Drawdabsmypaint {
     pub flags: u8,
     pub layer: u32,
     pub x: i32,
@@ -959,7 +909,7 @@ pub struct DrawDabsMyPaint {
     pub colorize: u8,
     pub posterize: u8,
     pub mode: u8,
-    pub dabs: Vec<MyPaintDab>,
+    pub dabs: Vec<Mypaintdab>,
 }
 
 /// Draw MyPaint brush dabs with single blend mode. Used for cases
@@ -968,14 +918,14 @@ pub struct DrawDabsMyPaint {
 /// 
 /// The layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct DrawDabsMyPaintBlend {
+pub struct Drawdabsmypaintblend {
     pub flags: u8,
     pub layer: u32,
     pub x: i32,
     pub y: i32,
     pub color: u32,
     pub mode: u8,
-    pub dabs: Vec<MyPaintBlendDab>,
+    pub dabs: Vec<Mypaintblenddab>,
 }
 
 /// Move a rectangular area on a layer or a selection.
@@ -987,7 +937,7 @@ pub struct DrawDabsMyPaintBlend {
 /// 
 /// The source and layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct MoveRect {
+pub struct Moverect {
     pub layer: u32,
     pub source: u32,
     pub sx: i32,
@@ -1007,8 +957,8 @@ pub struct MoveRect {
 /// but these fields are part of the document, like the pixel content
 /// or the annotations.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SetMetadataInt {
-    pub field: SetMetadataIntField,
+pub struct Setmetadataint {
+    pub field: SetmetadataintField,
     pub value: i32,
 }
 
@@ -1037,7 +987,7 @@ pub struct SetMetadataInt {
 /// 
 /// If layer controls are locked, this command requires session operator privileges.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerTreeCreate {
+pub struct Layertreecreate {
     pub id: u32,
     pub source: u32,
     pub target: u32,
@@ -1059,7 +1009,7 @@ pub struct LayerTreeCreate {
 /// would be allowed to create a layer there (which is always, since
 /// that's currently conflated with being allowed to edit layers.)
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerTreeMove {
+pub struct Layertreemove {
     pub layer: u32,
     pub parent: u32,
     pub sibling: u32,
@@ -1074,7 +1024,7 @@ pub struct LayerTreeMove {
 /// If the current layer or layer controls in general are locked, this command
 /// requires session operator privileges.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerTreeDelete {
+pub struct Layertreedelete {
     pub id: u32,
     pub merge_to: u32,
 }
@@ -1101,7 +1051,7 @@ pub struct LayerTreeDelete {
 /// 
 /// The source and layer id may refer to a selection.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TransformRegion {
+pub struct Transformregion {
     pub layer: u32,
     pub source: u32,
     pub bx: i32,
@@ -1116,7 +1066,7 @@ pub struct TransformRegion {
     pub y3: i32,
     pub x4: i32,
     pub y4: i32,
-    pub mode: TransformRegionMode,
+    pub mode: TransformregionMode,
     pub blend: u8,
     pub opacity: u8,
     pub mask: Vec<u8>,
@@ -1127,7 +1077,7 @@ pub struct TransformRegion {
 /// The track id must be prefixed by the user's context id, like layer
 /// and annotation ids. Operators are exempt from this restriction.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrackCreate {
+pub struct Trackcreate {
     pub id: u16,
     pub insert_id: u16,
     pub source_id: u16,
@@ -1136,14 +1086,14 @@ pub struct TrackCreate {
 
 /// Rename a timeline track.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrackRetitle {
+pub struct Trackretitle {
     pub id: u16,
     pub title: String,
 }
 
 /// Delete a timeline track.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrackDelete {
+pub struct Trackdelete {
     pub id: u16,
 }
 
@@ -1152,7 +1102,7 @@ pub struct TrackDelete {
 /// Works like the LayerOrder command, just for tracks: duplicates are
 /// ignored and missing tracks are appended to the end.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TrackOrder {
+pub struct Trackorder {
     pub tracks: Vec<u16>,
 }
 
@@ -1167,17 +1117,17 @@ pub struct TrackOrder {
 /// source is `KeyFrame`, the key frame is copied from the key frame at
 /// track with id `source_id` and frame index `source_index`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct KeyFrameSet {
+pub struct Keyframeset {
     pub track_id: u16,
     pub frame_index: u16,
     pub source_id: u32,
     pub source_index: u16,
-    pub source: KeyFrameSetSource,
+    pub source: KeyframesetSource,
 }
 
 /// Rename a key frame.
 #[derive(Debug, Clone, PartialEq)]
-pub struct KeyFrameRetitle {
+pub struct Keyframeretitle {
     pub track_id: u16,
     pub frame_index: u16,
     pub title: String,
@@ -1200,7 +1150,7 @@ pub struct KeyFrameRetitle {
 /// on the same layer cancels each other out and will act like
 /// neither is set.
 #[derive(Debug, Clone, PartialEq)]
-pub struct KeyFrameLayerAttributes {
+pub struct Keyframelayerattributes {
     pub track_id: u16,
     pub frame_index: u16,
     pub layer_flags: Vec<u32>,
@@ -1208,7 +1158,7 @@ pub struct KeyFrameLayerAttributes {
 
 /// Delete a key frame, possibly moving it somewhere else.
 #[derive(Debug, Clone, PartialEq)]
-pub struct KeyFrameDelete {
+pub struct Keyframedelete {
     pub track_id: u16,
     pub frame_index: u16,
     pub move_track_id: u16,
@@ -1227,9 +1177,9 @@ pub struct KeyFrameDelete {
 /// messages instead and selections are synchronized to the remote using
 /// SyncSelectionTile messages.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SelectionPut {
+pub struct Selectionput {
     pub selection_id: u8,
-    pub op: SelectionPutOp,
+    pub op: SelectionputOp,
     pub x: i32,
     pub y: i32,
     pub w: u32,
@@ -1244,7 +1194,7 @@ pub struct SelectionPut {
 /// messages instead and selections are synchronized to the remote using
 /// SyncSelectionTile messages.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SelectionClear {
+pub struct Selectionclear {
     pub selection_id: u8,
 }
 
@@ -1265,7 +1215,7 @@ pub struct SelectionClear {
 /// accept it anyway. In sessions on the builtin server, a PutImage message
 /// with an invalid blend mode is used instead.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LocalMatch {
+pub struct Localmatch {
     pub msg_type: u8,
     pub data: Vec<u8>,
 }
@@ -1280,84 +1230,11 @@ pub struct LocalMatch {
 /// 
 /// This command isn't rolled back by undos.
 #[derive(Debug, Clone, PartialEq)]
-pub struct SyncSelectionTile {
+pub struct Syncselectiontile {
     pub user: u8,
     pub selection_id: u8,
     pub col: u16,
     pub row: u16,
-    pub mask: Vec<u8>,
-}
-
-/// Like PutImage, but the image is split channel delta-encoded
-/// zstd-compressed 8 bit pixel data instead, prefixed by four bytes of
-/// length in little-endian. If the mask is exactly four bytes long, it
-/// represents a fill color in little-endian.
-#[derive(Debug, Clone, PartialEq)]
-pub struct PutImageZstd {
-    pub layer: u32,
-    pub mode: u8,
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
-    pub image: Vec<u8>,
-}
-
-/// Analogous to PutImageZstd but for PutTile.
-#[derive(Debug, Clone, PartialEq)]
-pub struct PutTileZstd {
-    pub user: u8,
-    pub layer: u32,
-    pub sublayer: u8,
-    pub col: u16,
-    pub row: u16,
-    pub repeat: u16,
-    pub image: Vec<u8>,
-}
-
-/// Analogous to PutImageZstd but for CanvasBackground.
-#[derive(Debug, Clone, PartialEq)]
-pub struct CanvasBackgroundZstd {
-    pub image: Vec<u8>,
-}
-
-/// Like MoveRect, but the mask is delta-encoded zstd-compressed 8 bit pixel
-/// data instead, prefixed by four bytes of length in little-endian.
-#[derive(Debug, Clone, PartialEq)]
-pub struct MoveRectZstd {
-    pub layer: u32,
-    pub source: u32,
-    pub sx: i32,
-    pub sy: i32,
-    pub tx: i32,
-    pub ty: i32,
-    pub w: i32,
-    pub h: i32,
-    pub blend: u8,
-    pub opacity: u8,
-    pub mask: Vec<u8>,
-}
-
-/// Analogous to MoveRectZstd but for TransformRegion.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TransformRegionZstd {
-    pub layer: u32,
-    pub source: u32,
-    pub bx: i32,
-    pub by: i32,
-    pub bw: i32,
-    pub bh: i32,
-    pub x1: i32,
-    pub y1: i32,
-    pub x2: i32,
-    pub y2: i32,
-    pub x3: i32,
-    pub y3: i32,
-    pub x4: i32,
-    pub y4: i32,
-    pub mode: TransformRegionMode,
-    pub blend: u8,
-    pub opacity: u8,
     pub mask: Vec<u8>,
 }
 
@@ -1379,41 +1256,41 @@ pub enum Message {
     /// - the login handshake
     /// - setting session parameters (e.g. max user count and password)
     /// - sending administration commands (e.g. kick user)
-    ServerCommand { user_id: u8, payload: ServerCommand },
+    Servercommand(Servercommand),
     /// Disconnect notification
     /// 
     /// This message is used when closing the connection gracefully. The message queue
     /// will automatically close the socket after sending this message.
-    Disconnect { user_id: u8, payload: Disconnect },
+    Disconnect(Disconnect),
     /// Ping message
     /// 
     /// This is used for latency measurement as well as a keepalive. Normally, the client
     /// should be the one to send the ping messages.
     /// 
     /// The server should return a Ping with the is_pong flag set
-    Ping { user_id: u8, payload: Ping },
+    Ping(Ping),
     /// The client may indicate support for this during login, in which
     /// case the server will send this kind of message if it did not send
     /// anything else for a while. This is to make sure the client doesn't
     /// run into an idle timeout if its upload queue is too saturated to
     /// actually manage sending out a ping.
-    KeepAlive { user_id: u8, payload: KeepAlive },
+    Keepalive(Keepalive),
     /// Message from the client to the server to provide a canvas
     /// thumbnail. The data may be prefixed by a correlation sequence as
     /// sent by the server, followed by the compressed image data in a
     /// format like JPEG or WEBP. The server does not interpret this data.
-    Thumbnail { user_id: u8, payload: Thumbnail },
+    Thumbnail(Thumbnail),
     /// Inform the client of a new user
     /// 
     /// This message is sent only be the server. It associates a username
     /// with a context ID.
-    Join { user_id: u8, payload: Join },
+    Join(Join),
     /// Inform the client of a user leaving
     /// 
     /// This message is sent only by the server. Upon receiving this message,
     /// clients will typically remove the user from the user listing. The client
     /// is also allowed to release resources associated with this context ID.
-    Leave { user_id: u8, payload: Leave },
+    Leave(Leave),
     /// Session ownership change
     /// 
     /// This message sets the users who have operator status. It can be
@@ -1425,13 +1302,13 @@ pub enum Message {
     /// The server sanitizes the ID list so, when distributed to other users,
     /// it does not contain any duplicates or non-existing users and can be trusted
     /// without checking the access control list.
-    SessionOwner { user_id: u8, payload: SessionOwner },
+    Sessionowner(Sessionowner),
     /// A chat message
     /// 
     /// Chat message sent by the server with the user ID 0 are server messages.
     /// (Typically a Command message is used for server announcements, but the Chat message
     /// is used for those messages that must be stored in the session history.)
-    Chat { user_id: u8, payload: Chat },
+    Chat(Chat),
     /// List of trusted users
     /// 
     /// This message sets the list of user who have been tagged as trusted,
@@ -1444,7 +1321,7 @@ pub enum Message {
     /// The server sanitizes the ID list so, when distributed to other users,
     /// it does not contain any duplicates or non-existing users and can be trusted
     /// without checking the access control list.
-    TrustedUsers { user_id: u8, payload: TrustedUsers },
+    Trustedusers(Trustedusers),
     /// Soft reset point marker
     /// 
     /// This message marks the point in the session history where a soft reset occurs.
@@ -1452,7 +1329,7 @@ pub enum Message {
     /// 
     /// All users should truncate their own session history when receiving this message,
     /// since undos cannot cross the reset boundary.
-    SoftReset { user_id: u8, payload: SoftReset },
+    Softreset(Softreset),
     /// A private chat message
     /// 
     /// Note. This message type was added in protocol 4.21.2 (v. 2.1.0). For backward compatiblity,
@@ -1460,24 +1337,24 @@ pub enum Message {
     /// other users. In version 3.0, this should be merged with the normal Chat message.
     /// 
     /// Private messages always bypass the session history.
-    PrivateChat { user_id: u8, payload: PrivateChat },
+    Privatechat(Privatechat),
     /// Streamed chunk of session reset messages. The client and server
     /// will negotiate support and compression algorithm.
-    ResetStream { user_id: u8, payload: ResetStream },
+    Resetstream(Resetstream),
     /// Event interval record
     /// 
     /// This is used to preserve timing information in session recordings.
     /// 
     /// Note. The maximum interval (using a single message) is about 65 seconds.
     /// Typically the intervals we want to store are a few seconds at most, so this should be enough.
-    Interval { user_id: u8, payload: Interval },
+    Interval(Interval),
     /// Start/end drawing pointer laser trail
     /// 
     /// This signals the beginning or the end of a laser pointer trail. The trail coordinates
     /// are sent with MovePointer messages.
     /// 
     /// A nonzero persistence indicates the start of the trail and zero the end.
-    LaserTrail { user_id: u8, payload: LaserTrail },
+    Lasertrail(Lasertrail),
     /// Move user pointer
     /// 
     /// This is message is used to update the position of the user pointer when no
@@ -1486,12 +1363,12 @@ pub enum Message {
     /// and thus doesn't affect the actual canvas content.
     /// 
     /// The pointer position is divided by 4, like classic brushes.
-    MovePointer { user_id: u8, payload: MovePointer },
+    Movepointer(Movepointer),
     /// Set user specific locks
     /// 
     /// This is an opaque meta command that contains a list of users to be locked.
     /// It can only be sent by session operators.
-    UserACL { user_id: u8, payload: UserACL },
+    Useracl(Useracl),
     /// Change layer access control list, setting permission flags, access level
     /// and exclusive access on a layer.
     /// 
@@ -1509,36 +1386,36 @@ pub enum Message {
     /// 
     /// As a special case, setting the ACLs of ID 0 sets or clears the canvas
     /// lock. The tier and exclusive user list is not used in this case.
-    LayerACL { user_id: u8, payload: LayerACL },
+    Layeracl(Layeracl),
     /// Change feature access tiers
     /// 
     /// Tier 0 is operator, 1 is trusted, 2 is authenticated, 3 and above
     /// is guest. A value of 255 means to leave that tier unchanged. Any
     /// unknown features will be ignored by the client.
-    FeatureAccessLevels { user_id: u8, payload: FeatureAccessLevels },
+    Featureaccesslevels(Featureaccesslevels),
     /// Set the default layer
     /// 
     /// The default layer is the one new users default to when logging in.
     /// If no default layer is set, the newest layer will be selected by default.
-    DefaultLayer { user_id: u8, payload: DefaultLayer },
+    Defaultlayer(Defaultlayer),
     /// Set maximum undo depth
-    UndoDepth { user_id: u8, payload: UndoDepth },
+    Undodepth(Undodepth),
     /// Send and receive structured information. Intended for stuff like
     /// sending and receiving user troubleshooting information, sharing
     /// brushes etc. Should probably be a server meta message so that it
     /// can be directed at the appropriate user, but that's something for
     /// Drawpile 3.0.
-    Data { user_id: u8, payload: Data },
+    Data(Data),
     /// A local-only modification, such as toggling layer visibility or
     /// setting a local canvas background. Shouldn't be sent over the
     /// network, but will be recorded.
-    LocalChange { user_id: u8, payload: LocalChange },
+    Localchange(Localchange),
     /// Change feature limits.
-    FeatureLimits { user_id: u8, payload: FeatureLimits },
+    Featurelimits(Featurelimits),
     /// Undo demarcation point
     /// 
     /// The client sends an UndoPoint message to signal the start of an undoable sequence.
-    UndoPoint { user_id: u8, payload: UndoPoint },
+    Undopoint(Undopoint),
     /// Adjust canvas size
     /// 
     /// This is the first command that must be sent to initialize the session.
@@ -1548,7 +1425,7 @@ pub enum Message {
     /// The new canvas size is relative to the old one. The four adjustement
     /// parameters extend or retract their respective borders.
     /// Initial canvas resize should be (0, w, h, 0).
-    CanvasResize { user_id: u8, payload: CanvasResize },
+    Canvasresize(Canvasresize),
     /// Change layer attributes
     /// 
     /// If the target layer is locked, this command requires session operator privileges.
@@ -1558,9 +1435,9 @@ pub enum Message {
     /// 
     /// Note: the `fixed` flag is unused since version 2.2. It's functionality is replaced
     /// by the custom timeline feature.
-    LayerAttributes { user_id: u8, payload: LayerAttributes },
+    Layerattributes(Layerattributes),
     /// Change a layer's title
-    LayerRetitle { user_id: u8, payload: LayerRetitle },
+    Layerretitle(Layerretitle),
     /// Draw a bitmap onto a layer or selection.
     /// 
     /// This is used for pasting images, flood-filling, merging annotations
@@ -1576,11 +1453,11 @@ pub enum Message {
     /// may have to be divided into multiple PutImage commands.
     /// 
     /// The layer id may refer to a selection.
-    PutImage { user_id: u8, payload: PutImage },
+    Putimage(Putimage),
     /// Fill a rectangle with solid color
     /// 
     /// The layer id may refer to a selection.
-    FillRect { user_id: u8, payload: FillRect },
+    Fillrect(Fillrect),
     /// Signals the end of a stroke. If one exists, this causes the
     /// sublayer of this user on the given layer to be merged into its
     /// parent. Strokes in indirect paint modes will create such sublayers.
@@ -1590,30 +1467,30 @@ pub enum Message {
     /// that's 0 too.
     /// 
     /// The layer id may refer to a selection.
-    PenUp { user_id: u8, payload: PenUp },
+    Penup(Penup),
     /// Create a new annotation
     /// 
     /// Annotations are floating text layers. They are drawn over the image layers and
     /// have no defined stacking order.
     /// 
     /// The new annotation created with this command is initally empy with a transparent background
-    AnnotationCreate { user_id: u8, payload: AnnotationCreate },
+    Annotationcreate(Annotationcreate),
     /// Change the position and size of an annotation
-    AnnotationReshape { user_id: u8, payload: AnnotationReshape },
+    Annotationreshape(Annotationreshape),
     /// Change annotation content
     /// 
     /// Accepted contents is the subset of HTML understood by QTextDocument
     /// 
     /// If an annotation is flagged as protected, it cannot be modified by users
     /// other than the one who created it, or session operators.
-    AnnotationEdit { user_id: u8, payload: AnnotationEdit },
+    Annotationedit(Annotationedit),
     /// Delete an annotation
     /// 
     /// Note: Unlike in layer delete command, there is no "merge" option here.
     /// Merging an annotation is done by rendering the annotation item to
     /// an image and drawing the image with the PutImage command. This ensures
     /// identical rendering on all clients.
-    AnnotationDelete { user_id: u8, payload: AnnotationDelete },
+    Annotationdelete(Annotationdelete),
     /// Set the content of a tile.
     /// 
     /// Unlike PutImage, this replaces an entire tile directly without any
@@ -1623,12 +1500,12 @@ pub enum Message {
     /// PutTile can target sublayers as well. This is used when generating
     /// a reset image with incomplete indirect strokes. Sending a PenUp
     /// command will merge the sublayer.
-    PutTile { user_id: u8, payload: PutTile },
+    Puttile(Puttile),
     /// Set the canvas background tile
     /// 
     /// If the payload is exactly 4 bytes long, it should be interpreted as a solid background color.
     /// Otherwise, it is the DEFLATED tile bitmap
-    CanvasBackground { user_id: u8, payload: CanvasBackground },
+    Canvasbackground(Canvasbackground),
     /// Draw classic brush dabs
     /// 
     /// A simple delta compression scheme is used. The coordinates of each
@@ -1637,16 +1514,14 @@ pub enum Message {
     /// the brush diameter multiplied by 256.
     /// 
     /// The layer id may refer to a selection.
-    DrawDabsClassic { user_id: u8, payload: DrawDabsClassic },
+    Drawdabsclassic(Drawdabsclassic),
     /// Draw round pixel brush dabs
     /// 
     /// The same kind of delta compression is used as in classicdabs,
     /// but the fields all have integer precision.
     /// 
     /// The layer id may refer to a selection.
-    DrawDabsPixel { user_id: u8, payload: DrawDabsPixel },
-    /// Draw square pixel brush dabs
-    DrawDabsPixelSquare { user_id: u8, payload: DrawDabsPixelSquare },
+    Drawdabspixel(Drawdabspixel),
     /// Draw MyPaint brush dabs in "normal and eraser" or "pigment and
     /// eraser" mode, the regular modes of MyPaint brushes as used in
     /// MyPaint itself.
@@ -1665,13 +1540,13 @@ pub enum Message {
     /// message instead.
     /// 
     /// The layer id may refer to a selection.
-    DrawDabsMyPaint { user_id: u8, payload: DrawDabsMyPaint },
+    Drawdabsmypaint(Drawdabsmypaint),
     /// Draw MyPaint brush dabs with single blend mode. Used for cases
     /// where the regular MyPaint blending with "normal and eraser" mode is
     /// unsuitable.
     /// 
     /// The layer id may refer to a selection.
-    DrawDabsMyPaintBlend { user_id: u8, payload: DrawDabsMyPaintBlend },
+    Drawdabsmypaintblend(Drawdabsmypaintblend),
     /// Move a rectangular area on a layer or a selection.
     /// 
     /// A mask image can be given to mask out part of the region
@@ -1680,13 +1555,13 @@ pub enum Message {
     /// Source and target rects may be (partially) outside the canvas.
     /// 
     /// The source and layer id may refer to a selection.
-    MoveRect { user_id: u8, payload: MoveRect },
+    Moverect(Moverect),
     /// Set a document metadata field (integer type)
     /// 
     /// These typically don't have an immediate visual effect,
     /// but these fields are part of the document, like the pixel content
     /// or the annotations.
-    SetMetadataInt { user_id: u8, payload: SetMetadataInt },
+    Setmetadataint(Setmetadataint),
     /// Create a new layer
     /// 
     /// A session starts with zero layers, so a layer creation command is typically
@@ -1711,7 +1586,7 @@ pub enum Message {
     /// The target must be nonzero.
     /// 
     /// If layer controls are locked, this command requires session operator privileges.
-    LayerTreeCreate { user_id: u8, payload: LayerTreeCreate },
+    Layertreecreate(Layertreecreate),
     /// Reorder a layer
     /// 
     /// Moves the given layer into the given parent group or into the root
@@ -1724,7 +1599,7 @@ pub enum Message {
     /// the parent. Moving into the parent group is allowed if the user has
     /// would be allowed to create a layer there (which is always, since
     /// that's currently conflated with being allowed to edit layers.)
-    LayerTreeMove { user_id: u8, payload: LayerTreeMove },
+    Layertreemove(Layertreemove),
     /// Delete a layer
     /// 
     /// If the merge to attribute is nonzero, the contents of the layer is merged
@@ -1733,7 +1608,7 @@ pub enum Message {
     /// 
     /// If the current layer or layer controls in general are locked, this command
     /// requires session operator privileges.
-    LayerTreeDelete { user_id: u8, payload: LayerTreeDelete },
+    Layertreedelete(Layertreedelete),
     /// Transform an area, optionally moving it between two layers.
     /// 
     /// This is used to implement selection moving. It is equivalent
@@ -1755,21 +1630,21 @@ pub enum Message {
     /// For axis aligned rectangle selections, no bitmap is necessary.
     /// 
     /// The source and layer id may refer to a selection.
-    TransformRegion { user_id: u8, payload: TransformRegion },
+    Transformregion(Transformregion),
     /// Create a timeline track.
     /// 
     /// The track id must be prefixed by the user's context id, like layer
     /// and annotation ids. Operators are exempt from this restriction.
-    TrackCreate { user_id: u8, payload: TrackCreate },
+    Trackcreate(Trackcreate),
     /// Rename a timeline track.
-    TrackRetitle { user_id: u8, payload: TrackRetitle },
+    Trackretitle(Trackretitle),
     /// Delete a timeline track.
-    TrackDelete { user_id: u8, payload: TrackDelete },
+    Trackdelete(Trackdelete),
     /// Reorder timeline tracks.
     /// 
     /// Works like the LayerOrder command, just for tracks: duplicates are
     /// ignored and missing tracks are appended to the end.
-    TrackOrder { user_id: u8, payload: TrackOrder },
+    Trackorder(Trackorder),
     /// Create or modify a key frame.
     /// 
     /// If there's no key frame at the given frame index, it will be
@@ -1780,9 +1655,9 @@ pub enum Message {
     /// `source_id` as the layer id, `source_index` will be ignored. If the
     /// source is `KeyFrame`, the key frame is copied from the key frame at
     /// track with id `source_id` and frame index `source_index`.
-    KeyFrameSet { user_id: u8, payload: KeyFrameSet },
+    Keyframeset(Keyframeset),
     /// Rename a key frame.
-    KeyFrameRetitle { user_id: u8, payload: KeyFrameRetitle },
+    Keyframeretitle(Keyframeretitle),
     /// Set (clobber) flags for layers inside of a key frame.
     /// 
     /// This takes a list of (layer id, flags) pairs. If a layer appears
@@ -1799,9 +1674,9 @@ pub enum Message {
     /// group, making it visible again. Putting both hidden and revealed
     /// on the same layer cancels each other out and will act like
     /// neither is set.
-    KeyFrameLayerAttributes { user_id: u8, payload: KeyFrameLayerAttributes },
+    Keyframelayerattributes(Keyframelayerattributes),
     /// Delete a key frame, possibly moving it somewhere else.
-    KeyFrameDelete { user_id: u8, payload: KeyFrameDelete },
+    Keyframedelete(Keyframedelete),
     /// Modify selection, either by a rectangle or a pixel mask.
     /// 
     /// The selection_id specifies which of the user's selections is affected.
@@ -1813,14 +1688,14 @@ pub enum Message {
     /// This message is never sent over the network, it's matched by LocalMatch
     /// messages instead and selections are synchronized to the remote using
     /// SyncSelectionTile messages.
-    SelectionPut { user_id: u8, payload: SelectionPut },
+    Selectionput(Selectionput),
     /// Remove the selection specified by the selection_id, or all selections if
     /// it's 0.
     /// 
     /// This message is never sent over the network, it's matched by LocalMatch
     /// messages instead and selections are synchronized to the remote using
     /// SyncSelectionTile messages.
-    SelectionClear { user_id: u8, payload: SelectionClear },
+    Selectionclear(Selectionclear),
     /// A command that is sent over the network just to match it with another
     /// message in the local fork. It has no effect in itself. This is currently
     /// used for selections, which only have an effect on the local user and
@@ -1837,7 +1712,7 @@ pub enum Message {
     /// doesn't have any effect for other users, it doesn't cause desync, so we
     /// accept it anyway. In sessions on the builtin server, a PutImage message
     /// with an invalid blend mode is used instead.
-    LocalMatch { user_id: u8, payload: LocalMatch },
+    Localmatch(Localmatch),
     /// Synchronizes a tile from a local selection into a remote one. The
     /// selection id must be 128 or higher.
     /// 
@@ -1847,23 +1722,9 @@ pub enum Message {
     /// mask has a length of zero, the selection is cleared instead.
     /// 
     /// This command isn't rolled back by undos.
-    SyncSelectionTile { user_id: u8, payload: SyncSelectionTile },
-    /// Like PutImage, but the image is split channel delta-encoded
-    /// zstd-compressed 8 bit pixel data instead, prefixed by four bytes of
-    /// length in little-endian. If the mask is exactly four bytes long, it
-    /// represents a fill color in little-endian.
-    PutImageZstd { user_id: u8, payload: PutImageZstd },
-    /// Analogous to PutImageZstd but for PutTile.
-    PutTileZstd { user_id: u8, payload: PutTileZstd },
-    /// Analogous to PutImageZstd but for CanvasBackground.
-    CanvasBackgroundZstd { user_id: u8, payload: CanvasBackgroundZstd },
-    /// Like MoveRect, but the mask is delta-encoded zstd-compressed 8 bit pixel
-    /// data instead, prefixed by four bytes of length in little-endian.
-    MoveRectZstd { user_id: u8, payload: MoveRectZstd },
-    /// Analogous to MoveRectZstd but for TransformRegion.
-    TransformRegionZstd { user_id: u8, payload: TransformRegionZstd },
+    Syncselectiontile(Syncselectiontile),
     /// Undo or redo actions
-    Undo { user_id: u8, payload: Undo },
+    Undo(Undo),
 }
 
 pub trait BinaryWriter {
@@ -1888,44 +1749,43 @@ pub trait BinaryReader {
     fn read_i24(&mut self) -> IoResult<i32>;
     fn read_i32(&mut self) -> IoResult<i32>;
     fn read_exact(&mut self, buf: &mut [u8]) -> IoResult<()>;
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> IoResult<usize>;
 }
 
 impl<W: Write> BinaryWriter for W {
     fn write_u8(&mut self, value: u8) -> IoResult<()> {
         self.write_all(&[value])
     }
-
+    
     fn write_u16(&mut self, value: u16) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_u24(&mut self, value: u32) -> IoResult<()> {
         let bytes = value.to_be_bytes();
         self.write_all(&bytes[1..])
     }
-
+    
     fn write_u32(&mut self, value: u32) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_i8(&mut self, value: i8) -> IoResult<()> {
         self.write_all(&[value as u8])
     }
-
+    
     fn write_i16(&mut self, value: i16) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_i24(&mut self, value: i32) -> IoResult<()> {
         let bytes = value.to_be_bytes();
         self.write_all(&bytes[1..])
     }
-
+    
     fn write_i32(&mut self, value: i32) -> IoResult<()> {
         self.write_all(&value.to_be_bytes())
     }
-
+    
     fn write_all(&mut self, buf: &[u8]) -> IoResult<()> {
         Write::write_all(self, buf)
     }
@@ -1937,33 +1797,33 @@ impl<R: Read> BinaryReader for R {
         self.read_exact(&mut buf)?;
         Ok(buf[0])
     }
-
+    
     fn read_u16(&mut self) -> IoResult<u16> {
         let mut buf = [0u8; 2];
         self.read_exact(&mut buf)?;
         Ok(u16::from_be_bytes(buf))
     }
-
+    
     fn read_u24(&mut self) -> IoResult<u32> {
         let mut buf = [0u8; 3];
         self.read_exact(&mut buf)?;
         Ok(u32::from_be_bytes([0, buf[0], buf[1], buf[2]]))
     }
-
+    
     fn read_u32(&mut self) -> IoResult<u32> {
         let mut buf = [0u8; 4];
         self.read_exact(&mut buf)?;
         Ok(u32::from_be_bytes(buf))
     }
-
+    
     fn read_i8(&mut self) -> IoResult<i8> {
         Ok(self.read_u8()? as i8)
     }
-
+    
     fn read_i16(&mut self) -> IoResult<i16> {
         Ok(self.read_u16()? as i16)
     }
-
+    
     fn read_i24(&mut self) -> IoResult<i32> {
         let value = self.read_u24()? as i32;
         // Sign extend 24-bit to 32-bit
@@ -1973,53 +1833,42 @@ impl<R: Read> BinaryReader for R {
             Ok(value)
         }
     }
-
+    
     fn read_i32(&mut self) -> IoResult<i32> {
         Ok(self.read_u32()? as i32)
     }
-
+    
     fn read_exact(&mut self, buf: &mut [u8]) -> IoResult<()> {
         Read::read_exact(self, buf)
-    }
-
-    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> IoResult<usize> {
-        Read::read_to_end(self, buf)
     }
 }
 
 pub trait Serializable {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()>;
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> where Self: Sized;
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> where Self: Sized;
     fn serialized_size(&self) -> usize;
 }
 
-impl Serializable for ServerCommand {
+impl Serializable for Servercommand {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         let bytes = self.msg.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let msg = String::from_utf8(buf)?;
-        Ok(ServerCommand {
+        Ok(Servercommand {
             msg,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.msg.len()
+        2 + self.msg.len()
     }
 }
 
@@ -2027,31 +1876,25 @@ impl Serializable for Disconnect {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.reason as u8)?;
         let bytes = self.message.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let reason = DisconnectReason::from_u8(reader.read_u8()?)?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let message = String::from_utf8(buf)?;
         Ok(Disconnect {
             reason,
             message,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + self.message.len()
+        1 + 2 + self.message.len()
     }
 }
 
@@ -2060,43 +1903,29 @@ impl Serializable for Ping {
         writer.write_u8(if self.is_pong { 1 } else { 0 })?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let is_pong = reader.read_u8()? != 0;
         Ok(Ping {
             is_pong,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1
     }
 }
 
-impl Serializable for KeepAlive {
+impl Serializable for Keepalive {
     fn serialize<W: BinaryWriter>(&self, _writer: &mut W) -> Result<()> {
         Ok(())
     }
-
-    fn deserialize<R: BinaryReader>(_reader: &mut R) -> Result<Self> {
-        Ok(KeepAlive {
+    
+    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
+        Ok(Keepalive {
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         0
     }
@@ -2104,27 +1933,22 @@ impl Serializable for KeepAlive {
 
 impl Serializable for Thumbnail {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.data.len() as u16)?;
         writer.write_all(&self.data)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
+        let len = reader.read_u16()? as usize;
+        let mut data = vec![0u8; len];
+        reader.read_exact(&mut data)?;
         Ok(Thumbnail {
             data,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.data.len()
+        2 + self.data.len()
     }
 }
 
@@ -2132,36 +1956,31 @@ impl Serializable for Join {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.flags)?;
         let bytes = self.name.as_bytes();
-        writer.write_u8(bytes.len() as u8)?;
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
+        writer.write_u16(self.avatar.len() as u16)?;
         writer.write_all(&self.avatar)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let flags = reader.read_u8()?;
-        let len = reader.read_u8()? as usize;
+        let len = reader.read_u16()? as usize;
         let mut buf = vec![0u8; len];
         reader.read_exact(&mut buf)?;
         let name = String::from_utf8(buf)?;
-        let mut avatar = Vec::new();
-        reader.read_to_end(&mut avatar)?;
+        let len = reader.read_u16()? as usize;
+        let mut avatar = vec![0u8; len];
+        reader.read_exact(&mut avatar)?;
         Ok(Join {
             flags,
             name,
             avatar,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 1 + self.name.len() + self.avatar.len()
+        1 + 2 + self.name.len() + 2 + self.avatar.len()
     }
 }
 
@@ -2169,55 +1988,39 @@ impl Serializable for Leave {
     fn serialize<W: BinaryWriter>(&self, _writer: &mut W) -> Result<()> {
         Ok(())
     }
-
-    fn deserialize<R: BinaryReader>(_reader: &mut R) -> Result<Self> {
+    
+    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         Ok(Leave {
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         0
     }
 }
 
-impl Serializable for SessionOwner {
+impl Serializable for Sessionowner {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.users.len() as u16)?;
         for item in &self.users {
         writer.write_u8(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes and parse as u8 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut users = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u8() {
-        users.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut users = Vec::with_capacity(len);
+        for _ in 0..len {
+        users.push(reader.read_u8()?);
         }
-        Ok(SessionOwner {
+        Ok(Sessionowner {
             users,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.users.len() * 1
+        2 + self.users.len() * 1
     }
 }
 
@@ -2226,16 +2029,17 @@ impl Serializable for Chat {
         writer.write_u8(self.tflags)?;
         writer.write_u8(self.oflags)?;
         let bytes = self.message.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let tflags = reader.read_u8()?;
         let oflags = reader.read_u8()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let message = String::from_utf8(buf)?;
         Ok(Chat {
             tflags,
@@ -2243,133 +2047,99 @@ impl Serializable for Chat {
             message,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 1 + self.message.len()
+        1 + 1 + 2 + self.message.len()
     }
 }
 
-impl Serializable for TrustedUsers {
+impl Serializable for Trustedusers {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.users.len() as u16)?;
         for item in &self.users {
         writer.write_u8(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes and parse as u8 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut users = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u8() {
-        users.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut users = Vec::with_capacity(len);
+        for _ in 0..len {
+        users.push(reader.read_u8()?);
         }
-        Ok(TrustedUsers {
+        Ok(Trustedusers {
             users,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.users.len() * 1
+        2 + self.users.len() * 1
     }
 }
 
-impl Serializable for SoftReset {
+impl Serializable for Softreset {
     fn serialize<W: BinaryWriter>(&self, _writer: &mut W) -> Result<()> {
         Ok(())
     }
-
-    fn deserialize<R: BinaryReader>(_reader: &mut R) -> Result<Self> {
-        Ok(SoftReset {
+    
+    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
+        Ok(Softreset {
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         0
     }
 }
 
-impl Serializable for PrivateChat {
+impl Serializable for Privatechat {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.target)?;
         writer.write_u8(self.oflags)?;
         let bytes = self.message.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let target = reader.read_u8()?;
         let oflags = reader.read_u8()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let message = String::from_utf8(buf)?;
-        Ok(PrivateChat {
+        Ok(Privatechat {
             target,
             oflags,
             message,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 1 + self.message.len()
+        1 + 1 + 2 + self.message.len()
     }
 }
 
-impl Serializable for ResetStream {
+impl Serializable for Resetstream {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.data.len() as u16)?;
         writer.write_all(&self.data)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
-        Ok(ResetStream {
+        let len = reader.read_u16()? as usize;
+        let mut data = vec![0u8; len];
+        reader.read_exact(&mut data)?;
+        Ok(Resetstream {
             data,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.data.len()
+        2 + self.data.len()
     }
 }
 
@@ -2378,235 +2148,173 @@ impl Serializable for Interval {
         writer.write_u16(self.msecs)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let msecs = reader.read_u16()?;
         Ok(Interval {
             msecs,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2
     }
 }
 
-impl Serializable for LaserTrail {
+impl Serializable for Lasertrail {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u32(self.color)?;
         writer.write_u8(self.persistence)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let color = reader.read_u32()?;
         let persistence = reader.read_u8()?;
-        Ok(LaserTrail {
+        Ok(Lasertrail {
             color,
             persistence,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         4 + 1
     }
 }
 
-impl Serializable for MovePointer {
+impl Serializable for Movepointer {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_i32(self.x)?;
         writer.write_i32(self.y)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let x = reader.read_i32()?;
         let y = reader.read_i32()?;
-        Ok(MovePointer {
+        Ok(Movepointer {
             x,
             y,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         4 + 4
     }
 }
 
-impl Serializable for UserACL {
+impl Serializable for Useracl {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.users.len() as u16)?;
         for item in &self.users {
         writer.write_u8(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes and parse as u8 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut users = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u8() {
-        users.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut users = Vec::with_capacity(len);
+        for _ in 0..len {
+        users.push(reader.read_u8()?);
         }
-        Ok(UserACL {
+        Ok(Useracl {
             users,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.users.len() * 1
+        2 + self.users.len() * 1
     }
 }
 
-impl Serializable for LayerACL {
+impl Serializable for Layeracl {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.id)?;
         writer.write_u8(self.flags)?;
+        writer.write_u16(self.exclusive.len() as u16)?;
         for item in &self.exclusive {
         writer.write_u8(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u24()?;
         let flags = reader.read_u8()?;
-        // Read all remaining bytes and parse as u8 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut exclusive = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u8() {
-        exclusive.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut exclusive = Vec::with_capacity(len);
+        for _ in 0..len {
+        exclusive.push(reader.read_u8()?);
         }
-        Ok(LayerACL {
+        Ok(Layeracl {
             id,
             flags,
             exclusive,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        3 + 1 + self.exclusive.len() * 1
+        3 + 1 + 2 + self.exclusive.len() * 1
     }
 }
 
-impl Serializable for FeatureAccessLevels {
+impl Serializable for Featureaccesslevels {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.feature_tiers.len() as u16)?;
         for item in &self.feature_tiers {
         writer.write_u8(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes and parse as u8 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut feature_tiers = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u8() {
-        feature_tiers.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut feature_tiers = Vec::with_capacity(len);
+        for _ in 0..len {
+        feature_tiers.push(reader.read_u8()?);
         }
-        Ok(FeatureAccessLevels {
+        Ok(Featureaccesslevels {
             feature_tiers,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.feature_tiers.len() * 1
+        2 + self.feature_tiers.len() * 1
     }
 }
 
-impl Serializable for DefaultLayer {
+impl Serializable for Defaultlayer {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.id)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u24()?;
-        Ok(DefaultLayer {
+        Ok(Defaultlayer {
             id,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         3
     }
 }
 
-impl Serializable for UndoDepth {
+impl Serializable for Undodepth {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.depth)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let depth = reader.read_u8()?;
-        Ok(UndoDepth {
+        Ok(Undodepth {
             depth,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1
     }
@@ -2616,120 +2324,94 @@ impl Serializable for Data {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.msg_type as u8)?;
         writer.write_u8(self.recipient)?;
+        writer.write_u16(self.body.len() as u16)?;
         writer.write_all(&self.body)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let msg_type = DataType::from_u8(reader.read_u8()?)?;
         let recipient = reader.read_u8()?;
-        let mut body = Vec::new();
-        reader.read_to_end(&mut body)?;
+        let len = reader.read_u16()? as usize;
+        let mut body = vec![0u8; len];
+        reader.read_exact(&mut body)?;
         Ok(Data {
             msg_type,
             recipient,
             body,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 1 + self.body.len()
+        1 + 1 + 2 + self.body.len()
     }
 }
 
-impl Serializable for LocalChange {
+impl Serializable for Localchange {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.msg_type as u8)?;
+        writer.write_u16(self.body.len() as u16)?;
         writer.write_all(&self.body)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let msg_type = LocalChangeType::from_u8(reader.read_u8()?)?;
-        let mut body = Vec::new();
-        reader.read_to_end(&mut body)?;
-        Ok(LocalChange {
+        let msg_type = LocalchangeType::from_u8(reader.read_u8()?)?;
+        let len = reader.read_u16()? as usize;
+        let mut body = vec![0u8; len];
+        reader.read_exact(&mut body)?;
+        Ok(Localchange {
             msg_type,
             body,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + self.body.len()
+        1 + 2 + self.body.len()
     }
 }
 
-impl Serializable for FeatureLimits {
+impl Serializable for Featurelimits {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.limits.len() as u16)?;
         for item in &self.limits {
         writer.write_i32(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes and parse as i32 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut limits = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_i32() {
-        limits.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut limits = Vec::with_capacity(len);
+        for _ in 0..len {
+        limits.push(reader.read_i32()?);
         }
-        Ok(FeatureLimits {
+        Ok(Featurelimits {
             limits,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.limits.len() * 4
+        2 + self.limits.len() * 4
     }
 }
 
-impl Serializable for UndoPoint {
+impl Serializable for Undopoint {
     fn serialize<W: BinaryWriter>(&self, _writer: &mut W) -> Result<()> {
         Ok(())
     }
-
-    fn deserialize<R: BinaryReader>(_reader: &mut R) -> Result<Self> {
-        Ok(UndoPoint {
+    
+    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
+        Ok(Undopoint {
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         0
     }
 }
 
-impl Serializable for CanvasResize {
+impl Serializable for Canvasresize {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_i32(self.top)?;
         writer.write_i32(self.right)?;
@@ -2737,33 +2419,26 @@ impl Serializable for CanvasResize {
         writer.write_i32(self.left)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let top = reader.read_i32()?;
         let right = reader.read_i32()?;
         let bottom = reader.read_i32()?;
         let left = reader.read_i32()?;
-        Ok(CanvasResize {
+        Ok(Canvasresize {
             top,
             right,
             bottom,
             left,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         4 + 4 + 4 + 4
     }
 }
 
-impl Serializable for LayerAttributes {
+impl Serializable for Layerattributes {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.id)?;
         writer.write_u8(self.sublayer)?;
@@ -2772,14 +2447,14 @@ impl Serializable for LayerAttributes {
         writer.write_u8(self.blend)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u24()?;
         let sublayer = reader.read_u8()?;
         let flags = reader.read_u8()?;
         let opacity = reader.read_u8()?;
         let blend = reader.read_u8()?;
-        Ok(LayerAttributes {
+        Ok(Layerattributes {
             id,
             sublayer,
             flags,
@@ -2787,52 +2462,39 @@ impl Serializable for LayerAttributes {
             blend,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         3 + 1 + 1 + 1 + 1
     }
 }
 
-impl Serializable for LayerRetitle {
+impl Serializable for Layerretitle {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.id)?;
         let bytes = self.title.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u24()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let title = String::from_utf8(buf)?;
-        Ok(LayerRetitle {
+        Ok(Layerretitle {
             id,
             title,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        3 + self.title.len()
+        3 + 2 + self.title.len()
     }
 }
 
-impl Serializable for PutImage {
+impl Serializable for Putimage {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.layer)?;
         writer.write_u8(self.mode)?;
@@ -2840,10 +2502,11 @@ impl Serializable for PutImage {
         writer.write_u32(self.y)?;
         writer.write_u32(self.w)?;
         writer.write_u32(self.h)?;
+        writer.write_u16(self.image.len() as u16)?;
         writer.write_all(&self.image)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let layer = reader.read_u24()?;
         let mode = reader.read_u8()?;
@@ -2851,9 +2514,10 @@ impl Serializable for PutImage {
         let y = reader.read_u32()?;
         let w = reader.read_u32()?;
         let h = reader.read_u32()?;
-        let mut image = Vec::new();
-        reader.read_to_end(&mut image)?;
-        Ok(PutImage {
+        let len = reader.read_u16()? as usize;
+        let mut image = vec![0u8; len];
+        reader.read_exact(&mut image)?;
+        Ok(Putimage {
             layer,
             mode,
             x,
@@ -2863,20 +2527,13 @@ impl Serializable for PutImage {
             image,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        3 + 1 + 4 + 4 + 4 + 4 + self.image.len()
+        3 + 1 + 4 + 4 + 4 + 4 + 2 + self.image.len()
     }
 }
 
-impl Serializable for FillRect {
+impl Serializable for Fillrect {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.layer)?;
         writer.write_u8(self.mode)?;
@@ -2887,7 +2544,7 @@ impl Serializable for FillRect {
         writer.write_u32(self.color)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let layer = reader.read_u24()?;
         let mode = reader.read_u8()?;
@@ -2896,7 +2553,7 @@ impl Serializable for FillRect {
         let w = reader.read_u32()?;
         let h = reader.read_u32()?;
         let color = reader.read_u32()?;
-        Ok(FillRect {
+        Ok(Fillrect {
             layer,
             mode,
             x,
@@ -2906,45 +2563,31 @@ impl Serializable for FillRect {
             color,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         3 + 1 + 4 + 4 + 4 + 4 + 4
     }
 }
 
-impl Serializable for PenUp {
+impl Serializable for Penup {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.layer)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let layer = reader.read_u24()?;
-        Ok(PenUp {
+        Ok(Penup {
             layer,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         3
     }
 }
 
-impl Serializable for AnnotationCreate {
+impl Serializable for Annotationcreate {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         writer.write_i32(self.x)?;
@@ -2953,14 +2596,14 @@ impl Serializable for AnnotationCreate {
         writer.write_u16(self.h)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
         let x = reader.read_i32()?;
         let y = reader.read_i32()?;
         let w = reader.read_u16()?;
         let h = reader.read_u16()?;
-        Ok(AnnotationCreate {
+        Ok(Annotationcreate {
             id,
             x,
             y,
@@ -2968,20 +2611,13 @@ impl Serializable for AnnotationCreate {
             h,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2 + 4 + 4 + 2 + 2
     }
 }
 
-impl Serializable for AnnotationReshape {
+impl Serializable for Annotationreshape {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         writer.write_i32(self.x)?;
@@ -2990,14 +2626,14 @@ impl Serializable for AnnotationReshape {
         writer.write_u16(self.h)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
         let x = reader.read_i32()?;
         let y = reader.read_i32()?;
         let w = reader.read_u16()?;
         let h = reader.read_u16()?;
-        Ok(AnnotationReshape {
+        Ok(Annotationreshape {
             id,
             x,
             y,
@@ -3005,40 +2641,34 @@ impl Serializable for AnnotationReshape {
             h,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2 + 4 + 4 + 2 + 2
     }
 }
 
-impl Serializable for AnnotationEdit {
+impl Serializable for Annotationedit {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         writer.write_u32(self.bg)?;
         writer.write_u8(self.flags)?;
         writer.write_u8(self.border)?;
         let bytes = self.text.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
         let bg = reader.read_u32()?;
         let flags = reader.read_u8()?;
         let border = reader.read_u8()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let text = String::from_utf8(buf)?;
-        Ok(AnnotationEdit {
+        Ok(Annotationedit {
             id,
             bg,
             flags,
@@ -3046,45 +2676,31 @@ impl Serializable for AnnotationEdit {
             text,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        2 + 4 + 1 + 1 + self.text.len()
+        2 + 4 + 1 + 1 + 2 + self.text.len()
     }
 }
 
-impl Serializable for AnnotationDelete {
+impl Serializable for Annotationdelete {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
-        Ok(AnnotationDelete {
+        Ok(Annotationdelete {
             id,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2
     }
 }
 
-impl Serializable for PutTile {
+impl Serializable for Puttile {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.user)?;
         writer.write_u24(self.layer)?;
@@ -3092,10 +2708,11 @@ impl Serializable for PutTile {
         writer.write_u16(self.col)?;
         writer.write_u16(self.row)?;
         writer.write_u16(self.repeat)?;
+        writer.write_u16(self.image.len() as u16)?;
         writer.write_all(&self.image)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let user = reader.read_u8()?;
         let layer = reader.read_u24()?;
@@ -3103,9 +2720,10 @@ impl Serializable for PutTile {
         let col = reader.read_u16()?;
         let row = reader.read_u16()?;
         let repeat = reader.read_u16()?;
-        let mut image = Vec::new();
-        reader.read_to_end(&mut image)?;
-        Ok(PutTile {
+        let len = reader.read_u16()? as usize;
+        let mut image = vec![0u8; len];
+        reader.read_exact(&mut image)?;
+        Ok(Puttile {
             user,
             layer,
             sublayer,
@@ -3115,46 +2733,34 @@ impl Serializable for PutTile {
             image,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 3 + 1 + 2 + 2 + 2 + self.image.len()
+        1 + 3 + 1 + 2 + 2 + 2 + 2 + self.image.len()
     }
 }
 
-impl Serializable for CanvasBackground {
+impl Serializable for Canvasbackground {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.image.len() as u16)?;
         writer.write_all(&self.image)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let mut image = Vec::new();
-        reader.read_to_end(&mut image)?;
-        Ok(CanvasBackground {
+        let len = reader.read_u16()? as usize;
+        let mut image = vec![0u8; len];
+        reader.read_exact(&mut image)?;
+        Ok(Canvasbackground {
             image,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.image.len()
+        2 + self.image.len()
     }
 }
 
-impl Serializable for DrawDabsClassic {
+impl Serializable for Drawdabsclassic {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.flags)?;
         writer.write_u24(self.layer)?;
@@ -3168,7 +2774,7 @@ impl Serializable for DrawDabsClassic {
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let flags = reader.read_u8()?;
         let layer = reader.read_u24()?;
@@ -3179,9 +2785,9 @@ impl Serializable for DrawDabsClassic {
         let len = reader.read_u16()? as usize;
         let mut dabs = Vec::with_capacity(len);
         for _ in 0..len {
-        dabs.push(ClassicDab::deserialize(reader)?);
+        dabs.push(Classicdab::deserialize(reader)?);
         }
-        Ok(DrawDabsClassic {
+        Ok(Drawdabsclassic {
             flags,
             layer,
             x,
@@ -3191,20 +2797,13 @@ impl Serializable for DrawDabsClassic {
             dabs,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 3 + 4 + 4 + 4 + 1 + 2 + self.dabs.iter().map(|item| item.serialized_size()).sum::<usize>()
     }
 }
 
-impl Serializable for DrawDabsPixel {
+impl Serializable for Drawdabspixel {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.flags)?;
         writer.write_u24(self.layer)?;
@@ -3218,7 +2817,7 @@ impl Serializable for DrawDabsPixel {
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let flags = reader.read_u8()?;
         let layer = reader.read_u24()?;
@@ -3229,9 +2828,9 @@ impl Serializable for DrawDabsPixel {
         let len = reader.read_u16()? as usize;
         let mut dabs = Vec::with_capacity(len);
         for _ in 0..len {
-        dabs.push(PixelDab::deserialize(reader)?);
+        dabs.push(Pixeldab::deserialize(reader)?);
         }
-        Ok(DrawDabsPixel {
+        Ok(Drawdabspixel {
             flags,
             layer,
             x,
@@ -3241,70 +2840,13 @@ impl Serializable for DrawDabsPixel {
             dabs,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 3 + 4 + 4 + 4 + 1 + 2 + self.dabs.iter().map(|item| item.serialized_size()).sum::<usize>()
     }
 }
 
-impl Serializable for DrawDabsPixelSquare {
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u8(self.flags)?;
-        writer.write_u24(self.layer)?;
-        writer.write_i32(self.x)?;
-        writer.write_i32(self.y)?;
-        writer.write_u32(self.color)?;
-        writer.write_u8(self.mode)?;
-        writer.write_u16(self.dabs.len() as u16)?;
-        for item in &self.dabs {
-        item.serialize(writer)?;
-        }
-        Ok(())
-    }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let flags = reader.read_u8()?;
-        let layer = reader.read_u24()?;
-        let x = reader.read_i32()?;
-        let y = reader.read_i32()?;
-        let color = reader.read_u32()?;
-        let mode = reader.read_u8()?;
-        let len = reader.read_u16()? as usize;
-        let mut dabs = Vec::with_capacity(len);
-        for _ in 0..len {
-        dabs.push(PixelDab::deserialize(reader)?);
-        }
-        Ok(DrawDabsPixelSquare {
-            flags,
-            layer,
-            x,
-            y,
-            color,
-            mode,
-            dabs,
-        })
-    }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {
-        1 + 3 + 4 + 4 + 4 + 1 + 2 + self.dabs.iter().map(|item| item.serialized_size()).sum::<usize>()
-    }
-}
-
-impl Serializable for DrawDabsMyPaint {
+impl Serializable for Drawdabsmypaint {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.flags)?;
         writer.write_u24(self.layer)?;
@@ -3321,7 +2863,7 @@ impl Serializable for DrawDabsMyPaint {
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let flags = reader.read_u8()?;
         let layer = reader.read_u24()?;
@@ -3335,9 +2877,9 @@ impl Serializable for DrawDabsMyPaint {
         let len = reader.read_u16()? as usize;
         let mut dabs = Vec::with_capacity(len);
         for _ in 0..len {
-        dabs.push(MyPaintDab::deserialize(reader)?);
+        dabs.push(Mypaintdab::deserialize(reader)?);
         }
-        Ok(DrawDabsMyPaint {
+        Ok(Drawdabsmypaint {
             flags,
             layer,
             x,
@@ -3350,20 +2892,13 @@ impl Serializable for DrawDabsMyPaint {
             dabs,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 3 + 4 + 4 + 4 + 1 + 1 + 1 + 1 + 2 + self.dabs.iter().map(|item| item.serialized_size()).sum::<usize>()
     }
 }
 
-impl Serializable for DrawDabsMyPaintBlend {
+impl Serializable for Drawdabsmypaintblend {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.flags)?;
         writer.write_u24(self.layer)?;
@@ -3377,7 +2912,7 @@ impl Serializable for DrawDabsMyPaintBlend {
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let flags = reader.read_u8()?;
         let layer = reader.read_u24()?;
@@ -3388,9 +2923,9 @@ impl Serializable for DrawDabsMyPaintBlend {
         let len = reader.read_u16()? as usize;
         let mut dabs = Vec::with_capacity(len);
         for _ in 0..len {
-        dabs.push(MyPaintBlendDab::deserialize(reader)?);
+        dabs.push(Mypaintblenddab::deserialize(reader)?);
         }
-        Ok(DrawDabsMyPaintBlend {
+        Ok(Drawdabsmypaintblend {
             flags,
             layer,
             x,
@@ -3400,20 +2935,13 @@ impl Serializable for DrawDabsMyPaintBlend {
             dabs,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 3 + 4 + 4 + 4 + 1 + 2 + self.dabs.iter().map(|item| item.serialized_size()).sum::<usize>()
     }
 }
 
-impl Serializable for MoveRect {
+impl Serializable for Moverect {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.layer)?;
         writer.write_u24(self.source)?;
@@ -3425,10 +2953,11 @@ impl Serializable for MoveRect {
         writer.write_i32(self.h)?;
         writer.write_u8(self.blend)?;
         writer.write_u8(self.opacity)?;
+        writer.write_u16(self.mask.len() as u16)?;
         writer.write_all(&self.mask)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let layer = reader.read_u24()?;
         let source = reader.read_u24()?;
@@ -3440,9 +2969,10 @@ impl Serializable for MoveRect {
         let h = reader.read_i32()?;
         let blend = reader.read_u8()?;
         let opacity = reader.read_u8()?;
-        let mut mask = Vec::new();
-        reader.read_to_end(&mut mask)?;
-        Ok(MoveRect {
+        let len = reader.read_u16()? as usize;
+        let mut mask = vec![0u8; len];
+        reader.read_exact(&mut mask)?;
+        Ok(Moverect {
             layer,
             source,
             sx,
@@ -3456,48 +2986,34 @@ impl Serializable for MoveRect {
             mask,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        3 + 3 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + self.mask.len()
+        3 + 3 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + 2 + self.mask.len()
     }
 }
 
-impl Serializable for SetMetadataInt {
+impl Serializable for Setmetadataint {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.field as u8)?;
         writer.write_i32(self.value)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let field = SetMetadataIntField::from_u8(reader.read_u8()?)?;
+        let field = SetmetadataintField::from_u8(reader.read_u8()?)?;
         let value = reader.read_i32()?;
-        Ok(SetMetadataInt {
+        Ok(Setmetadataint {
             field,
             value,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 4
     }
 }
 
-impl Serializable for LayerTreeCreate {
+impl Serializable for Layertreecreate {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.id)?;
         writer.write_u24(self.source)?;
@@ -3505,21 +3021,22 @@ impl Serializable for LayerTreeCreate {
         writer.write_u32(self.fill)?;
         writer.write_u8(self.flags)?;
         let bytes = self.title.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u24()?;
         let source = reader.read_u24()?;
         let target = reader.read_u24()?;
         let fill = reader.read_u32()?;
         let flags = reader.read_u8()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let title = String::from_utf8(buf)?;
-        Ok(LayerTreeCreate {
+        Ok(Layertreecreate {
             id,
             source,
             target,
@@ -3528,79 +3045,58 @@ impl Serializable for LayerTreeCreate {
             title,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        3 + 3 + 3 + 4 + 1 + self.title.len()
+        3 + 3 + 3 + 4 + 1 + 2 + self.title.len()
     }
 }
 
-impl Serializable for LayerTreeMove {
+impl Serializable for Layertreemove {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.layer)?;
         writer.write_u24(self.parent)?;
         writer.write_u24(self.sibling)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let layer = reader.read_u24()?;
         let parent = reader.read_u24()?;
         let sibling = reader.read_u24()?;
-        Ok(LayerTreeMove {
+        Ok(Layertreemove {
             layer,
             parent,
             sibling,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         3 + 3 + 3
     }
 }
 
-impl Serializable for LayerTreeDelete {
+impl Serializable for Layertreedelete {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.id)?;
         writer.write_u24(self.merge_to)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u24()?;
         let merge_to = reader.read_u24()?;
-        Ok(LayerTreeDelete {
+        Ok(Layertreedelete {
             id,
             merge_to,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         3 + 3
     }
 }
 
-impl Serializable for TransformRegion {
+impl Serializable for Transformregion {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u24(self.layer)?;
         writer.write_u24(self.source)?;
@@ -3619,10 +3115,11 @@ impl Serializable for TransformRegion {
         writer.write_u8(self.mode as u8)?;
         writer.write_u8(self.blend)?;
         writer.write_u8(self.opacity)?;
+        writer.write_u16(self.mask.len() as u16)?;
         writer.write_all(&self.mask)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let layer = reader.read_u24()?;
         let source = reader.read_u24()?;
@@ -3638,12 +3135,13 @@ impl Serializable for TransformRegion {
         let y3 = reader.read_i32()?;
         let x4 = reader.read_i32()?;
         let y4 = reader.read_i32()?;
-        let mode = TransformRegionMode::from_u8(reader.read_u8()?)?;
+        let mode = TransformregionMode::from_u8(reader.read_u8()?)?;
         let blend = reader.read_u8()?;
         let opacity = reader.read_u8()?;
-        let mut mask = Vec::new();
-        reader.read_to_end(&mut mask)?;
-        Ok(TransformRegion {
+        let len = reader.read_u16()? as usize;
+        let mut mask = vec![0u8; len];
+        reader.read_exact(&mut mask)?;
+        Ok(Transformregion {
             layer,
             source,
             bx,
@@ -3664,149 +3162,114 @@ impl Serializable for TransformRegion {
             mask,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        3 + 3 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + 1 + self.mask.len()
+        3 + 3 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + 1 + 2 + self.mask.len()
     }
 }
 
-impl Serializable for TrackCreate {
+impl Serializable for Trackcreate {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         writer.write_u16(self.insert_id)?;
         writer.write_u16(self.source_id)?;
         let bytes = self.title.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
         let insert_id = reader.read_u16()?;
         let source_id = reader.read_u16()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let title = String::from_utf8(buf)?;
-        Ok(TrackCreate {
+        Ok(Trackcreate {
             id,
             insert_id,
             source_id,
             title,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        2 + 2 + 2 + self.title.len()
+        2 + 2 + 2 + 2 + self.title.len()
     }
 }
 
-impl Serializable for TrackRetitle {
+impl Serializable for Trackretitle {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         let bytes = self.title.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let title = String::from_utf8(buf)?;
-        Ok(TrackRetitle {
+        Ok(Trackretitle {
             id,
             title,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        2 + self.title.len()
+        2 + 2 + self.title.len()
     }
 }
 
-impl Serializable for TrackDelete {
+impl Serializable for Trackdelete {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.id)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let id = reader.read_u16()?;
-        Ok(TrackDelete {
+        Ok(Trackdelete {
             id,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2
     }
 }
 
-impl Serializable for TrackOrder {
+impl Serializable for Trackorder {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_u16(self.tracks.len() as u16)?;
         for item in &self.tracks {
         writer.write_u16(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        // Read all remaining bytes and parse as u16 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut tracks = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u16() {
-        tracks.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut tracks = Vec::with_capacity(len);
+        for _ in 0..len {
+        tracks.push(reader.read_u16()?);
         }
-        Ok(TrackOrder {
+        Ok(Trackorder {
             tracks,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        self.tracks.len() * 2
+        2 + self.tracks.len() * 2
     }
 }
 
-impl Serializable for KeyFrameSet {
+impl Serializable for Keyframeset {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.track_id)?;
         writer.write_u16(self.frame_index)?;
@@ -3815,14 +3278,14 @@ impl Serializable for KeyFrameSet {
         writer.write_u8(self.source as u8)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let track_id = reader.read_u16()?;
         let frame_index = reader.read_u16()?;
         let source_id = reader.read_u24()?;
         let source_index = reader.read_u16()?;
-        let source = KeyFrameSetSource::from_u8(reader.read_u8()?)?;
-        Ok(KeyFrameSet {
+        let source = KeyframesetSource::from_u8(reader.read_u8()?)?;
+        Ok(Keyframeset {
             track_id,
             frame_index,
             source_id,
@@ -3830,95 +3293,73 @@ impl Serializable for KeyFrameSet {
             source,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2 + 2 + 3 + 2 + 1
     }
 }
 
-impl Serializable for KeyFrameRetitle {
+impl Serializable for Keyframeretitle {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.track_id)?;
         writer.write_u16(self.frame_index)?;
         let bytes = self.title.as_bytes();
+        writer.write_u16(bytes.len() as u16)?;
         writer.write_all(bytes)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let track_id = reader.read_u16()?;
         let frame_index = reader.read_u16()?;
-        // Read all remaining bytes as UTF-8 string
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
+        let len = reader.read_u16()? as usize;
+        let mut buf = vec![0u8; len];
+        reader.read_exact(&mut buf)?;
         let title = String::from_utf8(buf)?;
-        Ok(KeyFrameRetitle {
+        Ok(Keyframeretitle {
             track_id,
             frame_index,
             title,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        2 + 2 + self.title.len()
+        2 + 2 + 2 + self.title.len()
     }
 }
 
-impl Serializable for KeyFrameLayerAttributes {
+impl Serializable for Keyframelayerattributes {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.track_id)?;
         writer.write_u16(self.frame_index)?;
+        writer.write_u16(self.layer_flags.len() as u16)?;
         for item in &self.layer_flags {
         writer.write_u32(*item)?;
         }
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let track_id = reader.read_u16()?;
         let frame_index = reader.read_u16()?;
-        // Read all remaining bytes and parse as u32 values
-        let mut buf = Vec::new();
-        reader.read_to_end(&mut buf)?;
-        let mut layer_flags = Vec::new();
-        let mut cursor = std::io::Cursor::new(buf);
-        while let Ok(value) = cursor.read_u32() {
-        layer_flags.push(value);
+        let len = reader.read_u16()? as usize;
+        let mut layer_flags = Vec::with_capacity(len);
+        for _ in 0..len {
+        layer_flags.push(reader.read_u32()?);
         }
-        Ok(KeyFrameLayerAttributes {
+        Ok(Keyframelayerattributes {
             track_id,
             frame_index,
             layer_flags,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        2 + 2 + self.layer_flags.len() * 4
+        2 + 2 + 2 + self.layer_flags.len() * 4
     }
 }
 
-impl Serializable for KeyFrameDelete {
+impl Serializable for Keyframedelete {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u16(self.track_id)?;
         writer.write_u16(self.frame_index)?;
@@ -3926,33 +3367,26 @@ impl Serializable for KeyFrameDelete {
         writer.write_u16(self.move_frame_index)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let track_id = reader.read_u16()?;
         let frame_index = reader.read_u16()?;
         let move_track_id = reader.read_u16()?;
         let move_frame_index = reader.read_u16()?;
-        Ok(KeyFrameDelete {
+        Ok(Keyframedelete {
             track_id,
             frame_index,
             move_track_id,
             move_frame_index,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         2 + 2 + 2 + 2
     }
 }
 
-impl Serializable for SelectionPut {
+impl Serializable for Selectionput {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.selection_id)?;
         writer.write_u8(self.op as u8)?;
@@ -3960,20 +3394,22 @@ impl Serializable for SelectionPut {
         writer.write_i32(self.y)?;
         writer.write_u32(self.w)?;
         writer.write_u32(self.h)?;
+        writer.write_u16(self.mask.len() as u16)?;
         writer.write_all(&self.mask)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let selection_id = reader.read_u8()?;
-        let op = SelectionPutOp::from_u8(reader.read_u8()?)?;
+        let op = SelectionputOp::from_u8(reader.read_u8()?)?;
         let x = reader.read_i32()?;
         let y = reader.read_i32()?;
         let w = reader.read_u32()?;
         let h = reader.read_u32()?;
-        let mut mask = Vec::new();
-        reader.read_to_end(&mut mask)?;
-        Ok(SelectionPut {
+        let len = reader.read_u16()? as usize;
+        let mut mask = vec![0u8; len];
+        reader.read_exact(&mut mask)?;
+        Ok(Selectionput {
             selection_id,
             op,
             x,
@@ -3983,91 +3419,74 @@ impl Serializable for SelectionPut {
             mask,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 1 + 4 + 4 + 4 + 4 + self.mask.len()
+        1 + 1 + 4 + 4 + 4 + 4 + 2 + self.mask.len()
     }
 }
 
-impl Serializable for SelectionClear {
+impl Serializable for Selectionclear {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.selection_id)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let selection_id = reader.read_u8()?;
-        Ok(SelectionClear {
+        Ok(Selectionclear {
             selection_id,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1
     }
 }
 
-impl Serializable for LocalMatch {
+impl Serializable for Localmatch {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.msg_type)?;
+        writer.write_u16(self.data.len() as u16)?;
         writer.write_all(&self.data)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let msg_type = reader.read_u8()?;
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
-        Ok(LocalMatch {
+        let len = reader.read_u16()? as usize;
+        let mut data = vec![0u8; len];
+        reader.read_exact(&mut data)?;
+        Ok(Localmatch {
             msg_type,
             data,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + self.data.len()
+        1 + 2 + self.data.len()
     }
 }
 
-impl Serializable for SyncSelectionTile {
+impl Serializable for Syncselectiontile {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_u8(self.user)?;
         writer.write_u8(self.selection_id)?;
         writer.write_u16(self.col)?;
         writer.write_u16(self.row)?;
+        writer.write_u16(self.mask.len() as u16)?;
         writer.write_all(&self.mask)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let user = reader.read_u8()?;
         let selection_id = reader.read_u8()?;
         let col = reader.read_u16()?;
         let row = reader.read_u16()?;
-        let mut mask = Vec::new();
-        reader.read_to_end(&mut mask)?;
-        Ok(SyncSelectionTile {
+        let len = reader.read_u16()? as usize;
+        let mut mask = vec![0u8; len];
+        reader.read_exact(&mut mask)?;
+        Ok(Syncselectiontile {
             user,
             selection_id,
             col,
@@ -4075,263 +3494,9 @@ impl Serializable for SyncSelectionTile {
             mask,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
-        1 + 1 + 2 + 2 + self.mask.len()
-    }
-}
-
-impl Serializable for PutImageZstd {
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u24(self.layer)?;
-        writer.write_u8(self.mode)?;
-        writer.write_u32(self.x)?;
-        writer.write_u32(self.y)?;
-        writer.write_u32(self.w)?;
-        writer.write_u32(self.h)?;
-        writer.write_all(&self.image)?;
-        Ok(())
-    }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let layer = reader.read_u24()?;
-        let mode = reader.read_u8()?;
-        let x = reader.read_u32()?;
-        let y = reader.read_u32()?;
-        let w = reader.read_u32()?;
-        let h = reader.read_u32()?;
-        let mut image = Vec::new();
-        reader.read_to_end(&mut image)?;
-        Ok(PutImageZstd {
-            layer,
-            mode,
-            x,
-            y,
-            w,
-            h,
-            image,
-        })
-    }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {
-        3 + 1 + 4 + 4 + 4 + 4 + self.image.len()
-    }
-}
-
-impl Serializable for PutTileZstd {
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u8(self.user)?;
-        writer.write_u24(self.layer)?;
-        writer.write_u8(self.sublayer)?;
-        writer.write_u16(self.col)?;
-        writer.write_u16(self.row)?;
-        writer.write_u16(self.repeat)?;
-        writer.write_all(&self.image)?;
-        Ok(())
-    }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let user = reader.read_u8()?;
-        let layer = reader.read_u24()?;
-        let sublayer = reader.read_u8()?;
-        let col = reader.read_u16()?;
-        let row = reader.read_u16()?;
-        let repeat = reader.read_u16()?;
-        let mut image = Vec::new();
-        reader.read_to_end(&mut image)?;
-        Ok(PutTileZstd {
-            user,
-            layer,
-            sublayer,
-            col,
-            row,
-            repeat,
-            image,
-        })
-    }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {
-        1 + 3 + 1 + 2 + 2 + 2 + self.image.len()
-    }
-}
-
-impl Serializable for CanvasBackgroundZstd {
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_all(&self.image)?;
-        Ok(())
-    }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let mut image = Vec::new();
-        reader.read_to_end(&mut image)?;
-        Ok(CanvasBackgroundZstd {
-            image,
-        })
-    }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {
-        self.image.len()
-    }
-}
-
-impl Serializable for MoveRectZstd {
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u24(self.layer)?;
-        writer.write_u24(self.source)?;
-        writer.write_i32(self.sx)?;
-        writer.write_i32(self.sy)?;
-        writer.write_i32(self.tx)?;
-        writer.write_i32(self.ty)?;
-        writer.write_i32(self.w)?;
-        writer.write_i32(self.h)?;
-        writer.write_u8(self.blend)?;
-        writer.write_u8(self.opacity)?;
-        writer.write_all(&self.mask)?;
-        Ok(())
-    }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let layer = reader.read_u24()?;
-        let source = reader.read_u24()?;
-        let sx = reader.read_i32()?;
-        let sy = reader.read_i32()?;
-        let tx = reader.read_i32()?;
-        let ty = reader.read_i32()?;
-        let w = reader.read_i32()?;
-        let h = reader.read_i32()?;
-        let blend = reader.read_u8()?;
-        let opacity = reader.read_u8()?;
-        let mut mask = Vec::new();
-        reader.read_to_end(&mut mask)?;
-        Ok(MoveRectZstd {
-            layer,
-            source,
-            sx,
-            sy,
-            tx,
-            ty,
-            w,
-            h,
-            blend,
-            opacity,
-            mask,
-        })
-    }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {
-        3 + 3 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + self.mask.len()
-    }
-}
-
-impl Serializable for TransformRegionZstd {
-    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        writer.write_u24(self.layer)?;
-        writer.write_u24(self.source)?;
-        writer.write_i32(self.bx)?;
-        writer.write_i32(self.by)?;
-        writer.write_i32(self.bw)?;
-        writer.write_i32(self.bh)?;
-        writer.write_i32(self.x1)?;
-        writer.write_i32(self.y1)?;
-        writer.write_i32(self.x2)?;
-        writer.write_i32(self.y2)?;
-        writer.write_i32(self.x3)?;
-        writer.write_i32(self.y3)?;
-        writer.write_i32(self.x4)?;
-        writer.write_i32(self.y4)?;
-        writer.write_u8(self.mode as u8)?;
-        writer.write_u8(self.blend)?;
-        writer.write_u8(self.opacity)?;
-        writer.write_all(&self.mask)?;
-        Ok(())
-    }
-
-    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let layer = reader.read_u24()?;
-        let source = reader.read_u24()?;
-        let bx = reader.read_i32()?;
-        let by = reader.read_i32()?;
-        let bw = reader.read_i32()?;
-        let bh = reader.read_i32()?;
-        let x1 = reader.read_i32()?;
-        let y1 = reader.read_i32()?;
-        let x2 = reader.read_i32()?;
-        let y2 = reader.read_i32()?;
-        let x3 = reader.read_i32()?;
-        let y3 = reader.read_i32()?;
-        let x4 = reader.read_i32()?;
-        let y4 = reader.read_i32()?;
-        let mode = TransformRegionMode::from_u8(reader.read_u8()?)?;
-        let blend = reader.read_u8()?;
-        let opacity = reader.read_u8()?;
-        let mut mask = Vec::new();
-        reader.read_to_end(&mut mask)?;
-        Ok(TransformRegionZstd {
-            layer,
-            source,
-            bx,
-            by,
-            bw,
-            bh,
-            x1,
-            y1,
-            x2,
-            y2,
-            x3,
-            y3,
-            x4,
-            y4,
-            mode,
-            blend,
-            opacity,
-            mask,
-        })
-    }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
-    fn serialized_size(&self) -> usize {
-        3 + 3 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + 1 + self.mask.len()
+        1 + 1 + 2 + 2 + 2 + self.mask.len()
     }
 }
 
@@ -4341,7 +3506,7 @@ impl Serializable for Undo {
         writer.write_u8(if self.redo { 1 } else { 0 })?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let override_user = reader.read_u8()?;
         let redo = reader.read_u8()? != 0;
@@ -4350,20 +3515,13 @@ impl Serializable for Undo {
             redo,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 1
     }
 }
 
-impl Serializable for ClassicDab {
+impl Serializable for Classicdab {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_i8(self.x)?;
         writer.write_i8(self.y)?;
@@ -4372,14 +3530,14 @@ impl Serializable for ClassicDab {
         writer.write_u8(self.opacity)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let x = reader.read_i8()?;
         let y = reader.read_i8()?;
         let size = reader.read_u24()?;
         let hardness = reader.read_u8()?;
         let opacity = reader.read_u8()?;
-        Ok(ClassicDab {
+        Ok(Classicdab {
             x,
             y,
             size,
@@ -4387,20 +3545,13 @@ impl Serializable for ClassicDab {
             opacity,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 1 + 3 + 1 + 1
     }
 }
 
-impl Serializable for PixelDab {
+impl Serializable for Pixeldab {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_i8(self.x)?;
         writer.write_i8(self.y)?;
@@ -4408,33 +3559,53 @@ impl Serializable for PixelDab {
         writer.write_u8(self.opacity)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let x = reader.read_i8()?;
         let y = reader.read_i8()?;
         let size = reader.read_u16()?;
         let opacity = reader.read_u8()?;
-        Ok(PixelDab {
+        Ok(Pixeldab {
             x,
             y,
             size,
             opacity,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 1 + 2 + 1
     }
 }
 
-impl Serializable for MyPaintDab {
+impl Serializable for Pixeldab {
+    fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
+        writer.write_i8(self.x)?;
+        writer.write_i8(self.y)?;
+        writer.write_u16(self.size)?;
+        writer.write_u8(self.opacity)?;
+        Ok(())
+    }
+    
+    fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
+        let x = reader.read_i8()?;
+        let y = reader.read_i8()?;
+        let size = reader.read_u16()?;
+        let opacity = reader.read_u8()?;
+        Ok(Pixeldab {
+            x,
+            y,
+            size,
+            opacity,
+        })
+    }
+    
+    fn serialized_size(&self) -> usize {
+        1 + 1 + 2 + 1
+    }
+}
+
+impl Serializable for Mypaintdab {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_i8(self.x)?;
         writer.write_i8(self.y)?;
@@ -4445,7 +3616,7 @@ impl Serializable for MyPaintDab {
         writer.write_u8(self.aspect_ratio)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let x = reader.read_i8()?;
         let y = reader.read_i8()?;
@@ -4454,7 +3625,7 @@ impl Serializable for MyPaintDab {
         let opacity = reader.read_u8()?;
         let angle = reader.read_u8()?;
         let aspect_ratio = reader.read_u8()?;
-        Ok(MyPaintDab {
+        Ok(Mypaintdab {
             x,
             y,
             size,
@@ -4464,20 +3635,13 @@ impl Serializable for MyPaintDab {
             aspect_ratio,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 1 + 3 + 1 + 1 + 1 + 1
     }
 }
 
-impl Serializable for MyPaintBlendDab {
+impl Serializable for Mypaintblenddab {
     fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
         writer.write_i8(self.x)?;
         writer.write_i8(self.y)?;
@@ -4488,7 +3652,7 @@ impl Serializable for MyPaintBlendDab {
         writer.write_u8(self.aspect_ratio)?;
         Ok(())
     }
-
+    
     fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
         let x = reader.read_i8()?;
         let y = reader.read_i8()?;
@@ -4497,7 +3661,7 @@ impl Serializable for MyPaintBlendDab {
         let opacity = reader.read_u8()?;
         let angle = reader.read_u8()?;
         let aspect_ratio = reader.read_u8()?;
-        Ok(MyPaintBlendDab {
+        Ok(Mypaintblenddab {
             x,
             y,
             size,
@@ -4507,14 +3671,7 @@ impl Serializable for MyPaintBlendDab {
             aspect_ratio,
         })
     }
-
-    fn deserialize_with_header<R: BinaryReader>(header: &MessageHeader, reader: &mut R) -> Result<Self> {
-        let mut payload_bytes = vec![0u8; header.payload_length as usize];
-        reader.read_exact(&mut payload_bytes)?;
-        let mut payload_reader = std::io::Cursor::new(payload_bytes);
-        Self::deserialize(&mut payload_reader)
-    }
-
+    
     fn serialized_size(&self) -> usize {
         1 + 1 + 3 + 1 + 1 + 1 + 1
     }
@@ -4523,438 +3680,267 @@ impl Serializable for MyPaintBlendDab {
 impl Message {
     pub fn message_type(&self) -> MessageType {
         match self {
-            Message::ServerCommand { .. } => MessageType::SERVER_COMMAND,
-            Message::Disconnect { .. } => MessageType::DISCONNECT,
-            Message::Ping { .. } => MessageType::PING,
-            Message::KeepAlive { .. } => MessageType::KEEP_ALIVE,
-            Message::Thumbnail { .. } => MessageType::THUMBNAIL,
-            Message::Join { .. } => MessageType::JOIN,
-            Message::Leave { .. } => MessageType::LEAVE,
-            Message::SessionOwner { .. } => MessageType::SESSION_OWNER,
-            Message::Chat { .. } => MessageType::CHAT,
-            Message::TrustedUsers { .. } => MessageType::TRUSTED_USERS,
-            Message::SoftReset { .. } => MessageType::SOFT_RESET,
-            Message::PrivateChat { .. } => MessageType::PRIVATE_CHAT,
-            Message::ResetStream { .. } => MessageType::RESET_STREAM,
-            Message::Interval { .. } => MessageType::INTERVAL,
-            Message::LaserTrail { .. } => MessageType::LASER_TRAIL,
-            Message::MovePointer { .. } => MessageType::MOVE_POINTER,
-            Message::UserACL { .. } => MessageType::USER_ACL,
-            Message::LayerACL { .. } => MessageType::LAYER_ACL,
-            Message::FeatureAccessLevels { .. } => MessageType::FEATURE_ACCESS_LEVELS,
-            Message::DefaultLayer { .. } => MessageType::DEFAULT_LAYER,
-            Message::UndoDepth { .. } => MessageType::UNDO_DEPTH,
-            Message::Data { .. } => MessageType::DATA,
-            Message::LocalChange { .. } => MessageType::LOCAL_CHANGE,
-            Message::FeatureLimits { .. } => MessageType::FEATURE_LIMITS,
-            Message::UndoPoint { .. } => MessageType::UNDO_POINT,
-            Message::CanvasResize { .. } => MessageType::CANVAS_RESIZE,
-            Message::LayerAttributes { .. } => MessageType::LAYER_ATTRIBUTES,
-            Message::LayerRetitle { .. } => MessageType::LAYER_RETITLE,
-            Message::PutImage { .. } => MessageType::PUT_IMAGE,
-            Message::FillRect { .. } => MessageType::FILL_RECT,
-            Message::PenUp { .. } => MessageType::PEN_UP,
-            Message::AnnotationCreate { .. } => MessageType::ANNOTATION_CREATE,
-            Message::AnnotationReshape { .. } => MessageType::ANNOTATION_RESHAPE,
-            Message::AnnotationEdit { .. } => MessageType::ANNOTATION_EDIT,
-            Message::AnnotationDelete { .. } => MessageType::ANNOTATION_DELETE,
-            Message::PutTile { .. } => MessageType::PUT_TILE,
-            Message::CanvasBackground { .. } => MessageType::CANVAS_BACKGROUND,
-            Message::DrawDabsClassic { .. } => MessageType::DRAW_DABS_CLASSIC,
-            Message::DrawDabsPixel { .. } => MessageType::DRAW_DABS_PIXEL,
-            Message::DrawDabsPixelSquare { .. } => MessageType::DRAW_DABS_PIXEL_SQUARE,
-            Message::DrawDabsMyPaint { .. } => MessageType::DRAW_DABS_MY_PAINT,
-            Message::DrawDabsMyPaintBlend { .. } => MessageType::DRAW_DABS_MY_PAINT_BLEND,
-            Message::MoveRect { .. } => MessageType::MOVE_RECT,
-            Message::SetMetadataInt { .. } => MessageType::SET_METADATA_INT,
-            Message::LayerTreeCreate { .. } => MessageType::LAYER_TREE_CREATE,
-            Message::LayerTreeMove { .. } => MessageType::LAYER_TREE_MOVE,
-            Message::LayerTreeDelete { .. } => MessageType::LAYER_TREE_DELETE,
-            Message::TransformRegion { .. } => MessageType::TRANSFORM_REGION,
-            Message::TrackCreate { .. } => MessageType::TRACK_CREATE,
-            Message::TrackRetitle { .. } => MessageType::TRACK_RETITLE,
-            Message::TrackDelete { .. } => MessageType::TRACK_DELETE,
-            Message::TrackOrder { .. } => MessageType::TRACK_ORDER,
-            Message::KeyFrameSet { .. } => MessageType::KEY_FRAME_SET,
-            Message::KeyFrameRetitle { .. } => MessageType::KEY_FRAME_RETITLE,
-            Message::KeyFrameLayerAttributes { .. } => MessageType::KEY_FRAME_LAYER_ATTRIBUTES,
-            Message::KeyFrameDelete { .. } => MessageType::KEY_FRAME_DELETE,
-            Message::SelectionPut { .. } => MessageType::SELECTION_PUT,
-            Message::SelectionClear { .. } => MessageType::SELECTION_CLEAR,
-            Message::LocalMatch { .. } => MessageType::LOCAL_MATCH,
-            Message::SyncSelectionTile { .. } => MessageType::SYNC_SELECTION_TILE,
-            Message::PutImageZstd { .. } => MessageType::PUT_IMAGE_ZSTD,
-            Message::PutTileZstd { .. } => MessageType::PUT_TILE_ZSTD,
-            Message::CanvasBackgroundZstd { .. } => MessageType::CANVAS_BACKGROUND_ZSTD,
-            Message::MoveRectZstd { .. } => MessageType::MOVE_RECT_ZSTD,
-            Message::TransformRegionZstd { .. } => MessageType::TRANSFORM_REGION_ZSTD,
-            Message::Undo { .. } => MessageType::UNDO,
+            Message::Servercommand(_) => MessageType::SERVER_COMMAND,
+            Message::Disconnect(_) => MessageType::DISCONNECT,
+            Message::Ping(_) => MessageType::PING,
+            Message::Keepalive(_) => MessageType::KEEP_ALIVE,
+            Message::Thumbnail(_) => MessageType::THUMBNAIL,
+            Message::Join(_) => MessageType::JOIN,
+            Message::Leave(_) => MessageType::LEAVE,
+            Message::Sessionowner(_) => MessageType::SESSION_OWNER,
+            Message::Chat(_) => MessageType::CHAT,
+            Message::Trustedusers(_) => MessageType::TRUSTED_USERS,
+            Message::Softreset(_) => MessageType::SOFT_RESET,
+            Message::Privatechat(_) => MessageType::PRIVATE_CHAT,
+            Message::Resetstream(_) => MessageType::RESET_STREAM,
+            Message::Interval(_) => MessageType::INTERVAL,
+            Message::Lasertrail(_) => MessageType::LASER_TRAIL,
+            Message::Movepointer(_) => MessageType::MOVE_POINTER,
+            Message::Useracl(_) => MessageType::USER_ACL,
+            Message::Layeracl(_) => MessageType::LAYER_ACL,
+            Message::Featureaccesslevels(_) => MessageType::FEATURE_ACCESS_LEVELS,
+            Message::Defaultlayer(_) => MessageType::DEFAULT_LAYER,
+            Message::Undodepth(_) => MessageType::UNDO_DEPTH,
+            Message::Data(_) => MessageType::DATA,
+            Message::Localchange(_) => MessageType::LOCAL_CHANGE,
+            Message::Featurelimits(_) => MessageType::FEATURE_LIMITS,
+            Message::Undopoint(_) => MessageType::UNDO_POINT,
+            Message::Canvasresize(_) => MessageType::CANVAS_RESIZE,
+            Message::Layerattributes(_) => MessageType::LAYER_ATTRIBUTES,
+            Message::Layerretitle(_) => MessageType::LAYER_RETITLE,
+            Message::Putimage(_) => MessageType::PUT_IMAGE,
+            Message::Fillrect(_) => MessageType::FILL_RECT,
+            Message::Penup(_) => MessageType::PEN_UP,
+            Message::Annotationcreate(_) => MessageType::ANNOTATION_CREATE,
+            Message::Annotationreshape(_) => MessageType::ANNOTATION_RESHAPE,
+            Message::Annotationedit(_) => MessageType::ANNOTATION_EDIT,
+            Message::Annotationdelete(_) => MessageType::ANNOTATION_DELETE,
+            Message::Puttile(_) => MessageType::PUT_TILE,
+            Message::Canvasbackground(_) => MessageType::CANVAS_BACKGROUND,
+            Message::Drawdabsclassic(_) => MessageType::DRAW_DABS_CLASSIC,
+            Message::Drawdabspixel(_) => MessageType::DRAW_DABS_PIXEL,
+            Message::Drawdabsmypaint(_) => MessageType::DRAW_DABS_MY_PAINT,
+            Message::Drawdabsmypaintblend(_) => MessageType::DRAW_DABS_MY_PAINT_BLEND,
+            Message::Moverect(_) => MessageType::MOVE_RECT,
+            Message::Setmetadataint(_) => MessageType::SET_METADATA_INT,
+            Message::Layertreecreate(_) => MessageType::LAYER_TREE_CREATE,
+            Message::Layertreemove(_) => MessageType::LAYER_TREE_MOVE,
+            Message::Layertreedelete(_) => MessageType::LAYER_TREE_DELETE,
+            Message::Transformregion(_) => MessageType::TRANSFORM_REGION,
+            Message::Trackcreate(_) => MessageType::TRACK_CREATE,
+            Message::Trackretitle(_) => MessageType::TRACK_RETITLE,
+            Message::Trackdelete(_) => MessageType::TRACK_DELETE,
+            Message::Trackorder(_) => MessageType::TRACK_ORDER,
+            Message::Keyframeset(_) => MessageType::KEY_FRAME_SET,
+            Message::Keyframeretitle(_) => MessageType::KEY_FRAME_RETITLE,
+            Message::Keyframelayerattributes(_) => MessageType::KEY_FRAME_LAYER_ATTRIBUTES,
+            Message::Keyframedelete(_) => MessageType::KEY_FRAME_DELETE,
+            Message::Selectionput(_) => MessageType::SELECTION_PUT,
+            Message::Selectionclear(_) => MessageType::SELECTION_CLEAR,
+            Message::Localmatch(_) => MessageType::LOCAL_MATCH,
+            Message::Syncselectiontile(_) => MessageType::SYNC_SELECTION_TILE,
+            Message::Undo(_) => MessageType::UNDO,
         }
     }
-
-    pub fn user_id(&self) -> u8 {
-        match self {
-            Message::ServerCommand { user_id, .. } => *user_id,
-            Message::Disconnect { user_id, .. } => *user_id,
-            Message::Ping { user_id, .. } => *user_id,
-            Message::KeepAlive { user_id, .. } => *user_id,
-            Message::Thumbnail { user_id, .. } => *user_id,
-            Message::Join { user_id, .. } => *user_id,
-            Message::Leave { user_id, .. } => *user_id,
-            Message::SessionOwner { user_id, .. } => *user_id,
-            Message::Chat { user_id, .. } => *user_id,
-            Message::TrustedUsers { user_id, .. } => *user_id,
-            Message::SoftReset { user_id, .. } => *user_id,
-            Message::PrivateChat { user_id, .. } => *user_id,
-            Message::ResetStream { user_id, .. } => *user_id,
-            Message::Interval { user_id, .. } => *user_id,
-            Message::LaserTrail { user_id, .. } => *user_id,
-            Message::MovePointer { user_id, .. } => *user_id,
-            Message::UserACL { user_id, .. } => *user_id,
-            Message::LayerACL { user_id, .. } => *user_id,
-            Message::FeatureAccessLevels { user_id, .. } => *user_id,
-            Message::DefaultLayer { user_id, .. } => *user_id,
-            Message::UndoDepth { user_id, .. } => *user_id,
-            Message::Data { user_id, .. } => *user_id,
-            Message::LocalChange { user_id, .. } => *user_id,
-            Message::FeatureLimits { user_id, .. } => *user_id,
-            Message::UndoPoint { user_id, .. } => *user_id,
-            Message::CanvasResize { user_id, .. } => *user_id,
-            Message::LayerAttributes { user_id, .. } => *user_id,
-            Message::LayerRetitle { user_id, .. } => *user_id,
-            Message::PutImage { user_id, .. } => *user_id,
-            Message::FillRect { user_id, .. } => *user_id,
-            Message::PenUp { user_id, .. } => *user_id,
-            Message::AnnotationCreate { user_id, .. } => *user_id,
-            Message::AnnotationReshape { user_id, .. } => *user_id,
-            Message::AnnotationEdit { user_id, .. } => *user_id,
-            Message::AnnotationDelete { user_id, .. } => *user_id,
-            Message::PutTile { user_id, .. } => *user_id,
-            Message::CanvasBackground { user_id, .. } => *user_id,
-            Message::DrawDabsClassic { user_id, .. } => *user_id,
-            Message::DrawDabsPixel { user_id, .. } => *user_id,
-            Message::DrawDabsPixelSquare { user_id, .. } => *user_id,
-            Message::DrawDabsMyPaint { user_id, .. } => *user_id,
-            Message::DrawDabsMyPaintBlend { user_id, .. } => *user_id,
-            Message::MoveRect { user_id, .. } => *user_id,
-            Message::SetMetadataInt { user_id, .. } => *user_id,
-            Message::LayerTreeCreate { user_id, .. } => *user_id,
-            Message::LayerTreeMove { user_id, .. } => *user_id,
-            Message::LayerTreeDelete { user_id, .. } => *user_id,
-            Message::TransformRegion { user_id, .. } => *user_id,
-            Message::TrackCreate { user_id, .. } => *user_id,
-            Message::TrackRetitle { user_id, .. } => *user_id,
-            Message::TrackDelete { user_id, .. } => *user_id,
-            Message::TrackOrder { user_id, .. } => *user_id,
-            Message::KeyFrameSet { user_id, .. } => *user_id,
-            Message::KeyFrameRetitle { user_id, .. } => *user_id,
-            Message::KeyFrameLayerAttributes { user_id, .. } => *user_id,
-            Message::KeyFrameDelete { user_id, .. } => *user_id,
-            Message::SelectionPut { user_id, .. } => *user_id,
-            Message::SelectionClear { user_id, .. } => *user_id,
-            Message::LocalMatch { user_id, .. } => *user_id,
-            Message::SyncSelectionTile { user_id, .. } => *user_id,
-            Message::PutImageZstd { user_id, .. } => *user_id,
-            Message::PutTileZstd { user_id, .. } => *user_id,
-            Message::CanvasBackgroundZstd { user_id, .. } => *user_id,
-            Message::MoveRectZstd { user_id, .. } => *user_id,
-            Message::TransformRegionZstd { user_id, .. } => *user_id,
-            Message::Undo { user_id, .. } => *user_id,
-        }
-    }
-
+    
     pub fn serialize<W: BinaryWriter>(&self, writer: &mut W) -> Result<()> {
-        // Calculate payload size
-        let payload_size = match self {
-            Message::ServerCommand { payload, .. } => payload.serialized_size(),
-            Message::Disconnect { payload, .. } => payload.serialized_size(),
-            Message::Ping { payload, .. } => payload.serialized_size(),
-            Message::KeepAlive { payload, .. } => payload.serialized_size(),
-            Message::Thumbnail { payload, .. } => payload.serialized_size(),
-            Message::Join { payload, .. } => payload.serialized_size(),
-            Message::Leave { payload, .. } => payload.serialized_size(),
-            Message::SessionOwner { payload, .. } => payload.serialized_size(),
-            Message::Chat { payload, .. } => payload.serialized_size(),
-            Message::TrustedUsers { payload, .. } => payload.serialized_size(),
-            Message::SoftReset { payload, .. } => payload.serialized_size(),
-            Message::PrivateChat { payload, .. } => payload.serialized_size(),
-            Message::ResetStream { payload, .. } => payload.serialized_size(),
-            Message::Interval { payload, .. } => payload.serialized_size(),
-            Message::LaserTrail { payload, .. } => payload.serialized_size(),
-            Message::MovePointer { payload, .. } => payload.serialized_size(),
-            Message::UserACL { payload, .. } => payload.serialized_size(),
-            Message::LayerACL { payload, .. } => payload.serialized_size(),
-            Message::FeatureAccessLevels { payload, .. } => payload.serialized_size(),
-            Message::DefaultLayer { payload, .. } => payload.serialized_size(),
-            Message::UndoDepth { payload, .. } => payload.serialized_size(),
-            Message::Data { payload, .. } => payload.serialized_size(),
-            Message::LocalChange { payload, .. } => payload.serialized_size(),
-            Message::FeatureLimits { payload, .. } => payload.serialized_size(),
-            Message::UndoPoint { payload, .. } => payload.serialized_size(),
-            Message::CanvasResize { payload, .. } => payload.serialized_size(),
-            Message::LayerAttributes { payload, .. } => payload.serialized_size(),
-            Message::LayerRetitle { payload, .. } => payload.serialized_size(),
-            Message::PutImage { payload, .. } => payload.serialized_size(),
-            Message::FillRect { payload, .. } => payload.serialized_size(),
-            Message::PenUp { payload, .. } => payload.serialized_size(),
-            Message::AnnotationCreate { payload, .. } => payload.serialized_size(),
-            Message::AnnotationReshape { payload, .. } => payload.serialized_size(),
-            Message::AnnotationEdit { payload, .. } => payload.serialized_size(),
-            Message::AnnotationDelete { payload, .. } => payload.serialized_size(),
-            Message::PutTile { payload, .. } => payload.serialized_size(),
-            Message::CanvasBackground { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsClassic { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsPixel { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsPixelSquare { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsMyPaint { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsMyPaintBlend { payload, .. } => payload.serialized_size(),
-            Message::MoveRect { payload, .. } => payload.serialized_size(),
-            Message::SetMetadataInt { payload, .. } => payload.serialized_size(),
-            Message::LayerTreeCreate { payload, .. } => payload.serialized_size(),
-            Message::LayerTreeMove { payload, .. } => payload.serialized_size(),
-            Message::LayerTreeDelete { payload, .. } => payload.serialized_size(),
-            Message::TransformRegion { payload, .. } => payload.serialized_size(),
-            Message::TrackCreate { payload, .. } => payload.serialized_size(),
-            Message::TrackRetitle { payload, .. } => payload.serialized_size(),
-            Message::TrackDelete { payload, .. } => payload.serialized_size(),
-            Message::TrackOrder { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameSet { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameRetitle { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameLayerAttributes { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameDelete { payload, .. } => payload.serialized_size(),
-            Message::SelectionPut { payload, .. } => payload.serialized_size(),
-            Message::SelectionClear { payload, .. } => payload.serialized_size(),
-            Message::LocalMatch { payload, .. } => payload.serialized_size(),
-            Message::SyncSelectionTile { payload, .. } => payload.serialized_size(),
-            Message::PutImageZstd { payload, .. } => payload.serialized_size(),
-            Message::PutTileZstd { payload, .. } => payload.serialized_size(),
-            Message::CanvasBackgroundZstd { payload, .. } => payload.serialized_size(),
-            Message::MoveRectZstd { payload, .. } => payload.serialized_size(),
-            Message::TransformRegionZstd { payload, .. } => payload.serialized_size(),
-            Message::Undo { payload, .. } => payload.serialized_size(),
-        };
-
-        // Write message header (length + type + user_id)
-        let header = MessageHeader::new(
-            self.message_type() as u8,
-            self.user_id(),
-            payload_size as u16
-        );
-        header.serialize(writer)?;
-
+        // Write message type first
+        writer.write_u8(self.message_type() as u8)?;
+        
         // Write message payload
         match self {
-            Message::ServerCommand { payload, .. } => payload.serialize(writer),
-            Message::Disconnect { payload, .. } => payload.serialize(writer),
-            Message::Ping { payload, .. } => payload.serialize(writer),
-            Message::KeepAlive { payload, .. } => payload.serialize(writer),
-            Message::Thumbnail { payload, .. } => payload.serialize(writer),
-            Message::Join { payload, .. } => payload.serialize(writer),
-            Message::Leave { payload, .. } => payload.serialize(writer),
-            Message::SessionOwner { payload, .. } => payload.serialize(writer),
-            Message::Chat { payload, .. } => payload.serialize(writer),
-            Message::TrustedUsers { payload, .. } => payload.serialize(writer),
-            Message::SoftReset { payload, .. } => payload.serialize(writer),
-            Message::PrivateChat { payload, .. } => payload.serialize(writer),
-            Message::ResetStream { payload, .. } => payload.serialize(writer),
-            Message::Interval { payload, .. } => payload.serialize(writer),
-            Message::LaserTrail { payload, .. } => payload.serialize(writer),
-            Message::MovePointer { payload, .. } => payload.serialize(writer),
-            Message::UserACL { payload, .. } => payload.serialize(writer),
-            Message::LayerACL { payload, .. } => payload.serialize(writer),
-            Message::FeatureAccessLevels { payload, .. } => payload.serialize(writer),
-            Message::DefaultLayer { payload, .. } => payload.serialize(writer),
-            Message::UndoDepth { payload, .. } => payload.serialize(writer),
-            Message::Data { payload, .. } => payload.serialize(writer),
-            Message::LocalChange { payload, .. } => payload.serialize(writer),
-            Message::FeatureLimits { payload, .. } => payload.serialize(writer),
-            Message::UndoPoint { payload, .. } => payload.serialize(writer),
-            Message::CanvasResize { payload, .. } => payload.serialize(writer),
-            Message::LayerAttributes { payload, .. } => payload.serialize(writer),
-            Message::LayerRetitle { payload, .. } => payload.serialize(writer),
-            Message::PutImage { payload, .. } => payload.serialize(writer),
-            Message::FillRect { payload, .. } => payload.serialize(writer),
-            Message::PenUp { payload, .. } => payload.serialize(writer),
-            Message::AnnotationCreate { payload, .. } => payload.serialize(writer),
-            Message::AnnotationReshape { payload, .. } => payload.serialize(writer),
-            Message::AnnotationEdit { payload, .. } => payload.serialize(writer),
-            Message::AnnotationDelete { payload, .. } => payload.serialize(writer),
-            Message::PutTile { payload, .. } => payload.serialize(writer),
-            Message::CanvasBackground { payload, .. } => payload.serialize(writer),
-            Message::DrawDabsClassic { payload, .. } => payload.serialize(writer),
-            Message::DrawDabsPixel { payload, .. } => payload.serialize(writer),
-            Message::DrawDabsPixelSquare { payload, .. } => payload.serialize(writer),
-            Message::DrawDabsMyPaint { payload, .. } => payload.serialize(writer),
-            Message::DrawDabsMyPaintBlend { payload, .. } => payload.serialize(writer),
-            Message::MoveRect { payload, .. } => payload.serialize(writer),
-            Message::SetMetadataInt { payload, .. } => payload.serialize(writer),
-            Message::LayerTreeCreate { payload, .. } => payload.serialize(writer),
-            Message::LayerTreeMove { payload, .. } => payload.serialize(writer),
-            Message::LayerTreeDelete { payload, .. } => payload.serialize(writer),
-            Message::TransformRegion { payload, .. } => payload.serialize(writer),
-            Message::TrackCreate { payload, .. } => payload.serialize(writer),
-            Message::TrackRetitle { payload, .. } => payload.serialize(writer),
-            Message::TrackDelete { payload, .. } => payload.serialize(writer),
-            Message::TrackOrder { payload, .. } => payload.serialize(writer),
-            Message::KeyFrameSet { payload, .. } => payload.serialize(writer),
-            Message::KeyFrameRetitle { payload, .. } => payload.serialize(writer),
-            Message::KeyFrameLayerAttributes { payload, .. } => payload.serialize(writer),
-            Message::KeyFrameDelete { payload, .. } => payload.serialize(writer),
-            Message::SelectionPut { payload, .. } => payload.serialize(writer),
-            Message::SelectionClear { payload, .. } => payload.serialize(writer),
-            Message::LocalMatch { payload, .. } => payload.serialize(writer),
-            Message::SyncSelectionTile { payload, .. } => payload.serialize(writer),
-            Message::PutImageZstd { payload, .. } => payload.serialize(writer),
-            Message::PutTileZstd { payload, .. } => payload.serialize(writer),
-            Message::CanvasBackgroundZstd { payload, .. } => payload.serialize(writer),
-            Message::MoveRectZstd { payload, .. } => payload.serialize(writer),
-            Message::TransformRegionZstd { payload, .. } => payload.serialize(writer),
-            Message::Undo { payload, .. } => payload.serialize(writer),
+            Message::Servercommand(msg) => msg.serialize(writer),
+            Message::Disconnect(msg) => msg.serialize(writer),
+            Message::Ping(msg) => msg.serialize(writer),
+            Message::Keepalive(msg) => msg.serialize(writer),
+            Message::Thumbnail(msg) => msg.serialize(writer),
+            Message::Join(msg) => msg.serialize(writer),
+            Message::Leave(msg) => msg.serialize(writer),
+            Message::Sessionowner(msg) => msg.serialize(writer),
+            Message::Chat(msg) => msg.serialize(writer),
+            Message::Trustedusers(msg) => msg.serialize(writer),
+            Message::Softreset(msg) => msg.serialize(writer),
+            Message::Privatechat(msg) => msg.serialize(writer),
+            Message::Resetstream(msg) => msg.serialize(writer),
+            Message::Interval(msg) => msg.serialize(writer),
+            Message::Lasertrail(msg) => msg.serialize(writer),
+            Message::Movepointer(msg) => msg.serialize(writer),
+            Message::Useracl(msg) => msg.serialize(writer),
+            Message::Layeracl(msg) => msg.serialize(writer),
+            Message::Featureaccesslevels(msg) => msg.serialize(writer),
+            Message::Defaultlayer(msg) => msg.serialize(writer),
+            Message::Undodepth(msg) => msg.serialize(writer),
+            Message::Data(msg) => msg.serialize(writer),
+            Message::Localchange(msg) => msg.serialize(writer),
+            Message::Featurelimits(msg) => msg.serialize(writer),
+            Message::Undopoint(msg) => msg.serialize(writer),
+            Message::Canvasresize(msg) => msg.serialize(writer),
+            Message::Layerattributes(msg) => msg.serialize(writer),
+            Message::Layerretitle(msg) => msg.serialize(writer),
+            Message::Putimage(msg) => msg.serialize(writer),
+            Message::Fillrect(msg) => msg.serialize(writer),
+            Message::Penup(msg) => msg.serialize(writer),
+            Message::Annotationcreate(msg) => msg.serialize(writer),
+            Message::Annotationreshape(msg) => msg.serialize(writer),
+            Message::Annotationedit(msg) => msg.serialize(writer),
+            Message::Annotationdelete(msg) => msg.serialize(writer),
+            Message::Puttile(msg) => msg.serialize(writer),
+            Message::Canvasbackground(msg) => msg.serialize(writer),
+            Message::Drawdabsclassic(msg) => msg.serialize(writer),
+            Message::Drawdabspixel(msg) => msg.serialize(writer),
+            Message::Drawdabsmypaint(msg) => msg.serialize(writer),
+            Message::Drawdabsmypaintblend(msg) => msg.serialize(writer),
+            Message::Moverect(msg) => msg.serialize(writer),
+            Message::Setmetadataint(msg) => msg.serialize(writer),
+            Message::Layertreecreate(msg) => msg.serialize(writer),
+            Message::Layertreemove(msg) => msg.serialize(writer),
+            Message::Layertreedelete(msg) => msg.serialize(writer),
+            Message::Transformregion(msg) => msg.serialize(writer),
+            Message::Trackcreate(msg) => msg.serialize(writer),
+            Message::Trackretitle(msg) => msg.serialize(writer),
+            Message::Trackdelete(msg) => msg.serialize(writer),
+            Message::Trackorder(msg) => msg.serialize(writer),
+            Message::Keyframeset(msg) => msg.serialize(writer),
+            Message::Keyframeretitle(msg) => msg.serialize(writer),
+            Message::Keyframelayerattributes(msg) => msg.serialize(writer),
+            Message::Keyframedelete(msg) => msg.serialize(writer),
+            Message::Selectionput(msg) => msg.serialize(writer),
+            Message::Selectionclear(msg) => msg.serialize(writer),
+            Message::Localmatch(msg) => msg.serialize(writer),
+            Message::Syncselectiontile(msg) => msg.serialize(writer),
+            Message::Undo(msg) => msg.serialize(writer),
         }
     }
-
+    
     pub fn deserialize<R: BinaryReader>(reader: &mut R) -> Result<Self> {
-        let header = MessageHeader::deserialize(reader)?;
-        let msg_type = MessageType::from_u8(header.message_type)?;
-
+        let msg_type = MessageType::from_u8(reader.read_u8()?)?;
+        
         match msg_type {
-            MessageType::SERVER_COMMAND => Ok(Message::ServerCommand { user_id: header.user_id, payload: ServerCommand::deserialize_with_header(&header, reader)? }),
-            MessageType::DISCONNECT => Ok(Message::Disconnect { user_id: header.user_id, payload: Disconnect::deserialize_with_header(&header, reader)? }),
-            MessageType::PING => Ok(Message::Ping { user_id: header.user_id, payload: Ping::deserialize_with_header(&header, reader)? }),
-            MessageType::KEEP_ALIVE => Ok(Message::KeepAlive { user_id: header.user_id, payload: KeepAlive::deserialize_with_header(&header, reader)? }),
-            MessageType::THUMBNAIL => Ok(Message::Thumbnail { user_id: header.user_id, payload: Thumbnail::deserialize_with_header(&header, reader)? }),
-            MessageType::JOIN => Ok(Message::Join { user_id: header.user_id, payload: Join::deserialize_with_header(&header, reader)? }),
-            MessageType::LEAVE => Ok(Message::Leave { user_id: header.user_id, payload: Leave::deserialize_with_header(&header, reader)? }),
-            MessageType::SESSION_OWNER => Ok(Message::SessionOwner { user_id: header.user_id, payload: SessionOwner::deserialize_with_header(&header, reader)? }),
-            MessageType::CHAT => Ok(Message::Chat { user_id: header.user_id, payload: Chat::deserialize_with_header(&header, reader)? }),
-            MessageType::TRUSTED_USERS => Ok(Message::TrustedUsers { user_id: header.user_id, payload: TrustedUsers::deserialize_with_header(&header, reader)? }),
-            MessageType::SOFT_RESET => Ok(Message::SoftReset { user_id: header.user_id, payload: SoftReset::deserialize_with_header(&header, reader)? }),
-            MessageType::PRIVATE_CHAT => Ok(Message::PrivateChat { user_id: header.user_id, payload: PrivateChat::deserialize_with_header(&header, reader)? }),
-            MessageType::RESET_STREAM => Ok(Message::ResetStream { user_id: header.user_id, payload: ResetStream::deserialize_with_header(&header, reader)? }),
-            MessageType::INTERVAL => Ok(Message::Interval { user_id: header.user_id, payload: Interval::deserialize_with_header(&header, reader)? }),
-            MessageType::LASER_TRAIL => Ok(Message::LaserTrail { user_id: header.user_id, payload: LaserTrail::deserialize_with_header(&header, reader)? }),
-            MessageType::MOVE_POINTER => Ok(Message::MovePointer { user_id: header.user_id, payload: MovePointer::deserialize_with_header(&header, reader)? }),
-            MessageType::USER_ACL => Ok(Message::UserACL { user_id: header.user_id, payload: UserACL::deserialize_with_header(&header, reader)? }),
-            MessageType::LAYER_ACL => Ok(Message::LayerACL { user_id: header.user_id, payload: LayerACL::deserialize_with_header(&header, reader)? }),
-            MessageType::FEATURE_ACCESS_LEVELS => Ok(Message::FeatureAccessLevels { user_id: header.user_id, payload: FeatureAccessLevels::deserialize_with_header(&header, reader)? }),
-            MessageType::DEFAULT_LAYER => Ok(Message::DefaultLayer { user_id: header.user_id, payload: DefaultLayer::deserialize_with_header(&header, reader)? }),
-            MessageType::UNDO_DEPTH => Ok(Message::UndoDepth { user_id: header.user_id, payload: UndoDepth::deserialize_with_header(&header, reader)? }),
-            MessageType::DATA => Ok(Message::Data { user_id: header.user_id, payload: Data::deserialize_with_header(&header, reader)? }),
-            MessageType::LOCAL_CHANGE => Ok(Message::LocalChange { user_id: header.user_id, payload: LocalChange::deserialize_with_header(&header, reader)? }),
-            MessageType::FEATURE_LIMITS => Ok(Message::FeatureLimits { user_id: header.user_id, payload: FeatureLimits::deserialize_with_header(&header, reader)? }),
-            MessageType::UNDO_POINT => Ok(Message::UndoPoint { user_id: header.user_id, payload: UndoPoint::deserialize_with_header(&header, reader)? }),
-            MessageType::CANVAS_RESIZE => Ok(Message::CanvasResize { user_id: header.user_id, payload: CanvasResize::deserialize_with_header(&header, reader)? }),
-            MessageType::LAYER_ATTRIBUTES => Ok(Message::LayerAttributes { user_id: header.user_id, payload: LayerAttributes::deserialize_with_header(&header, reader)? }),
-            MessageType::LAYER_RETITLE => Ok(Message::LayerRetitle { user_id: header.user_id, payload: LayerRetitle::deserialize_with_header(&header, reader)? }),
-            MessageType::PUT_IMAGE => Ok(Message::PutImage { user_id: header.user_id, payload: PutImage::deserialize_with_header(&header, reader)? }),
-            MessageType::FILL_RECT => Ok(Message::FillRect { user_id: header.user_id, payload: FillRect::deserialize_with_header(&header, reader)? }),
-            MessageType::PEN_UP => Ok(Message::PenUp { user_id: header.user_id, payload: PenUp::deserialize_with_header(&header, reader)? }),
-            MessageType::ANNOTATION_CREATE => Ok(Message::AnnotationCreate { user_id: header.user_id, payload: AnnotationCreate::deserialize_with_header(&header, reader)? }),
-            MessageType::ANNOTATION_RESHAPE => Ok(Message::AnnotationReshape { user_id: header.user_id, payload: AnnotationReshape::deserialize_with_header(&header, reader)? }),
-            MessageType::ANNOTATION_EDIT => Ok(Message::AnnotationEdit { user_id: header.user_id, payload: AnnotationEdit::deserialize_with_header(&header, reader)? }),
-            MessageType::ANNOTATION_DELETE => Ok(Message::AnnotationDelete { user_id: header.user_id, payload: AnnotationDelete::deserialize_with_header(&header, reader)? }),
-            MessageType::PUT_TILE => Ok(Message::PutTile { user_id: header.user_id, payload: PutTile::deserialize_with_header(&header, reader)? }),
-            MessageType::CANVAS_BACKGROUND => Ok(Message::CanvasBackground { user_id: header.user_id, payload: CanvasBackground::deserialize_with_header(&header, reader)? }),
-            MessageType::DRAW_DABS_CLASSIC => Ok(Message::DrawDabsClassic { user_id: header.user_id, payload: DrawDabsClassic::deserialize_with_header(&header, reader)? }),
-            MessageType::DRAW_DABS_PIXEL => Ok(Message::DrawDabsPixel { user_id: header.user_id, payload: DrawDabsPixel::deserialize_with_header(&header, reader)? }),
-            MessageType::DRAW_DABS_PIXEL_SQUARE => Ok(Message::DrawDabsPixelSquare { user_id: header.user_id, payload: DrawDabsPixelSquare::deserialize_with_header(&header, reader)? }),
-            MessageType::DRAW_DABS_MY_PAINT => Ok(Message::DrawDabsMyPaint { user_id: header.user_id, payload: DrawDabsMyPaint::deserialize_with_header(&header, reader)? }),
-            MessageType::DRAW_DABS_MY_PAINT_BLEND => Ok(Message::DrawDabsMyPaintBlend { user_id: header.user_id, payload: DrawDabsMyPaintBlend::deserialize_with_header(&header, reader)? }),
-            MessageType::MOVE_RECT => Ok(Message::MoveRect { user_id: header.user_id, payload: MoveRect::deserialize_with_header(&header, reader)? }),
-            MessageType::SET_METADATA_INT => Ok(Message::SetMetadataInt { user_id: header.user_id, payload: SetMetadataInt::deserialize_with_header(&header, reader)? }),
-            MessageType::LAYER_TREE_CREATE => Ok(Message::LayerTreeCreate { user_id: header.user_id, payload: LayerTreeCreate::deserialize_with_header(&header, reader)? }),
-            MessageType::LAYER_TREE_MOVE => Ok(Message::LayerTreeMove { user_id: header.user_id, payload: LayerTreeMove::deserialize_with_header(&header, reader)? }),
-            MessageType::LAYER_TREE_DELETE => Ok(Message::LayerTreeDelete { user_id: header.user_id, payload: LayerTreeDelete::deserialize_with_header(&header, reader)? }),
-            MessageType::TRANSFORM_REGION => Ok(Message::TransformRegion { user_id: header.user_id, payload: TransformRegion::deserialize_with_header(&header, reader)? }),
-            MessageType::TRACK_CREATE => Ok(Message::TrackCreate { user_id: header.user_id, payload: TrackCreate::deserialize_with_header(&header, reader)? }),
-            MessageType::TRACK_RETITLE => Ok(Message::TrackRetitle { user_id: header.user_id, payload: TrackRetitle::deserialize_with_header(&header, reader)? }),
-            MessageType::TRACK_DELETE => Ok(Message::TrackDelete { user_id: header.user_id, payload: TrackDelete::deserialize_with_header(&header, reader)? }),
-            MessageType::TRACK_ORDER => Ok(Message::TrackOrder { user_id: header.user_id, payload: TrackOrder::deserialize_with_header(&header, reader)? }),
-            MessageType::KEY_FRAME_SET => Ok(Message::KeyFrameSet { user_id: header.user_id, payload: KeyFrameSet::deserialize_with_header(&header, reader)? }),
-            MessageType::KEY_FRAME_RETITLE => Ok(Message::KeyFrameRetitle { user_id: header.user_id, payload: KeyFrameRetitle::deserialize_with_header(&header, reader)? }),
-            MessageType::KEY_FRAME_LAYER_ATTRIBUTES => Ok(Message::KeyFrameLayerAttributes { user_id: header.user_id, payload: KeyFrameLayerAttributes::deserialize_with_header(&header, reader)? }),
-            MessageType::KEY_FRAME_DELETE => Ok(Message::KeyFrameDelete { user_id: header.user_id, payload: KeyFrameDelete::deserialize_with_header(&header, reader)? }),
-            MessageType::SELECTION_PUT => Ok(Message::SelectionPut { user_id: header.user_id, payload: SelectionPut::deserialize_with_header(&header, reader)? }),
-            MessageType::SELECTION_CLEAR => Ok(Message::SelectionClear { user_id: header.user_id, payload: SelectionClear::deserialize_with_header(&header, reader)? }),
-            MessageType::LOCAL_MATCH => Ok(Message::LocalMatch { user_id: header.user_id, payload: LocalMatch::deserialize_with_header(&header, reader)? }),
-            MessageType::SYNC_SELECTION_TILE => Ok(Message::SyncSelectionTile { user_id: header.user_id, payload: SyncSelectionTile::deserialize_with_header(&header, reader)? }),
-            MessageType::PUT_IMAGE_ZSTD => Ok(Message::PutImageZstd { user_id: header.user_id, payload: PutImageZstd::deserialize_with_header(&header, reader)? }),
-            MessageType::PUT_TILE_ZSTD => Ok(Message::PutTileZstd { user_id: header.user_id, payload: PutTileZstd::deserialize_with_header(&header, reader)? }),
-            MessageType::CANVAS_BACKGROUND_ZSTD => Ok(Message::CanvasBackgroundZstd { user_id: header.user_id, payload: CanvasBackgroundZstd::deserialize_with_header(&header, reader)? }),
-            MessageType::MOVE_RECT_ZSTD => Ok(Message::MoveRectZstd { user_id: header.user_id, payload: MoveRectZstd::deserialize_with_header(&header, reader)? }),
-            MessageType::TRANSFORM_REGION_ZSTD => Ok(Message::TransformRegionZstd { user_id: header.user_id, payload: TransformRegionZstd::deserialize_with_header(&header, reader)? }),
-            MessageType::UNDO => Ok(Message::Undo { user_id: header.user_id, payload: Undo::deserialize_with_header(&header, reader)? }),
+            MessageType::SERVER_COMMAND => Ok(Message::Servercommand(Servercommand::deserialize(reader)?)),
+            MessageType::DISCONNECT => Ok(Message::Disconnect(Disconnect::deserialize(reader)?)),
+            MessageType::PING => Ok(Message::Ping(Ping::deserialize(reader)?)),
+            MessageType::KEEP_ALIVE => Ok(Message::Keepalive(Keepalive::deserialize(reader)?)),
+            MessageType::THUMBNAIL => Ok(Message::Thumbnail(Thumbnail::deserialize(reader)?)),
+            MessageType::JOIN => Ok(Message::Join(Join::deserialize(reader)?)),
+            MessageType::LEAVE => Ok(Message::Leave(Leave::deserialize(reader)?)),
+            MessageType::SESSION_OWNER => Ok(Message::Sessionowner(Sessionowner::deserialize(reader)?)),
+            MessageType::CHAT => Ok(Message::Chat(Chat::deserialize(reader)?)),
+            MessageType::TRUSTED_USERS => Ok(Message::Trustedusers(Trustedusers::deserialize(reader)?)),
+            MessageType::SOFT_RESET => Ok(Message::Softreset(Softreset::deserialize(reader)?)),
+            MessageType::PRIVATE_CHAT => Ok(Message::Privatechat(Privatechat::deserialize(reader)?)),
+            MessageType::RESET_STREAM => Ok(Message::Resetstream(Resetstream::deserialize(reader)?)),
+            MessageType::INTERVAL => Ok(Message::Interval(Interval::deserialize(reader)?)),
+            MessageType::LASER_TRAIL => Ok(Message::Lasertrail(Lasertrail::deserialize(reader)?)),
+            MessageType::MOVE_POINTER => Ok(Message::Movepointer(Movepointer::deserialize(reader)?)),
+            MessageType::USER_ACL => Ok(Message::Useracl(Useracl::deserialize(reader)?)),
+            MessageType::LAYER_ACL => Ok(Message::Layeracl(Layeracl::deserialize(reader)?)),
+            MessageType::FEATURE_ACCESS_LEVELS => Ok(Message::Featureaccesslevels(Featureaccesslevels::deserialize(reader)?)),
+            MessageType::DEFAULT_LAYER => Ok(Message::Defaultlayer(Defaultlayer::deserialize(reader)?)),
+            MessageType::UNDO_DEPTH => Ok(Message::Undodepth(Undodepth::deserialize(reader)?)),
+            MessageType::DATA => Ok(Message::Data(Data::deserialize(reader)?)),
+            MessageType::LOCAL_CHANGE => Ok(Message::Localchange(Localchange::deserialize(reader)?)),
+            MessageType::FEATURE_LIMITS => Ok(Message::Featurelimits(Featurelimits::deserialize(reader)?)),
+            MessageType::UNDO_POINT => Ok(Message::Undopoint(Undopoint::deserialize(reader)?)),
+            MessageType::CANVAS_RESIZE => Ok(Message::Canvasresize(Canvasresize::deserialize(reader)?)),
+            MessageType::LAYER_ATTRIBUTES => Ok(Message::Layerattributes(Layerattributes::deserialize(reader)?)),
+            MessageType::LAYER_RETITLE => Ok(Message::Layerretitle(Layerretitle::deserialize(reader)?)),
+            MessageType::PUT_IMAGE => Ok(Message::Putimage(Putimage::deserialize(reader)?)),
+            MessageType::FILL_RECT => Ok(Message::Fillrect(Fillrect::deserialize(reader)?)),
+            MessageType::PEN_UP => Ok(Message::Penup(Penup::deserialize(reader)?)),
+            MessageType::ANNOTATION_CREATE => Ok(Message::Annotationcreate(Annotationcreate::deserialize(reader)?)),
+            MessageType::ANNOTATION_RESHAPE => Ok(Message::Annotationreshape(Annotationreshape::deserialize(reader)?)),
+            MessageType::ANNOTATION_EDIT => Ok(Message::Annotationedit(Annotationedit::deserialize(reader)?)),
+            MessageType::ANNOTATION_DELETE => Ok(Message::Annotationdelete(Annotationdelete::deserialize(reader)?)),
+            MessageType::PUT_TILE => Ok(Message::Puttile(Puttile::deserialize(reader)?)),
+            MessageType::CANVAS_BACKGROUND => Ok(Message::Canvasbackground(Canvasbackground::deserialize(reader)?)),
+            MessageType::DRAW_DABS_CLASSIC => Ok(Message::Drawdabsclassic(Drawdabsclassic::deserialize(reader)?)),
+            MessageType::DRAW_DABS_PIXEL => Ok(Message::Drawdabspixel(Drawdabspixel::deserialize(reader)?)),
+            MessageType::DRAW_DABS_MY_PAINT => Ok(Message::Drawdabsmypaint(Drawdabsmypaint::deserialize(reader)?)),
+            MessageType::DRAW_DABS_MY_PAINT_BLEND => Ok(Message::Drawdabsmypaintblend(Drawdabsmypaintblend::deserialize(reader)?)),
+            MessageType::MOVE_RECT => Ok(Message::Moverect(Moverect::deserialize(reader)?)),
+            MessageType::SET_METADATA_INT => Ok(Message::Setmetadataint(Setmetadataint::deserialize(reader)?)),
+            MessageType::LAYER_TREE_CREATE => Ok(Message::Layertreecreate(Layertreecreate::deserialize(reader)?)),
+            MessageType::LAYER_TREE_MOVE => Ok(Message::Layertreemove(Layertreemove::deserialize(reader)?)),
+            MessageType::LAYER_TREE_DELETE => Ok(Message::Layertreedelete(Layertreedelete::deserialize(reader)?)),
+            MessageType::TRANSFORM_REGION => Ok(Message::Transformregion(Transformregion::deserialize(reader)?)),
+            MessageType::TRACK_CREATE => Ok(Message::Trackcreate(Trackcreate::deserialize(reader)?)),
+            MessageType::TRACK_RETITLE => Ok(Message::Trackretitle(Trackretitle::deserialize(reader)?)),
+            MessageType::TRACK_DELETE => Ok(Message::Trackdelete(Trackdelete::deserialize(reader)?)),
+            MessageType::TRACK_ORDER => Ok(Message::Trackorder(Trackorder::deserialize(reader)?)),
+            MessageType::KEY_FRAME_SET => Ok(Message::Keyframeset(Keyframeset::deserialize(reader)?)),
+            MessageType::KEY_FRAME_RETITLE => Ok(Message::Keyframeretitle(Keyframeretitle::deserialize(reader)?)),
+            MessageType::KEY_FRAME_LAYER_ATTRIBUTES => Ok(Message::Keyframelayerattributes(Keyframelayerattributes::deserialize(reader)?)),
+            MessageType::KEY_FRAME_DELETE => Ok(Message::Keyframedelete(Keyframedelete::deserialize(reader)?)),
+            MessageType::SELECTION_PUT => Ok(Message::Selectionput(Selectionput::deserialize(reader)?)),
+            MessageType::SELECTION_CLEAR => Ok(Message::Selectionclear(Selectionclear::deserialize(reader)?)),
+            MessageType::LOCAL_MATCH => Ok(Message::Localmatch(Localmatch::deserialize(reader)?)),
+            MessageType::SYNC_SELECTION_TILE => Ok(Message::Syncselectiontile(Syncselectiontile::deserialize(reader)?)),
+            MessageType::UNDO => Ok(Message::Undo(Undo::deserialize(reader)?)),
         }
     }
-
+    
     pub fn serialized_size(&self) -> usize {
-        MessageHeader::SIZE + match self {
-            Message::ServerCommand { payload, .. } => payload.serialized_size(),
-            Message::Disconnect { payload, .. } => payload.serialized_size(),
-            Message::Ping { payload, .. } => payload.serialized_size(),
-            Message::KeepAlive { payload, .. } => payload.serialized_size(),
-            Message::Thumbnail { payload, .. } => payload.serialized_size(),
-            Message::Join { payload, .. } => payload.serialized_size(),
-            Message::Leave { payload, .. } => payload.serialized_size(),
-            Message::SessionOwner { payload, .. } => payload.serialized_size(),
-            Message::Chat { payload, .. } => payload.serialized_size(),
-            Message::TrustedUsers { payload, .. } => payload.serialized_size(),
-            Message::SoftReset { payload, .. } => payload.serialized_size(),
-            Message::PrivateChat { payload, .. } => payload.serialized_size(),
-            Message::ResetStream { payload, .. } => payload.serialized_size(),
-            Message::Interval { payload, .. } => payload.serialized_size(),
-            Message::LaserTrail { payload, .. } => payload.serialized_size(),
-            Message::MovePointer { payload, .. } => payload.serialized_size(),
-            Message::UserACL { payload, .. } => payload.serialized_size(),
-            Message::LayerACL { payload, .. } => payload.serialized_size(),
-            Message::FeatureAccessLevels { payload, .. } => payload.serialized_size(),
-            Message::DefaultLayer { payload, .. } => payload.serialized_size(),
-            Message::UndoDepth { payload, .. } => payload.serialized_size(),
-            Message::Data { payload, .. } => payload.serialized_size(),
-            Message::LocalChange { payload, .. } => payload.serialized_size(),
-            Message::FeatureLimits { payload, .. } => payload.serialized_size(),
-            Message::UndoPoint { payload, .. } => payload.serialized_size(),
-            Message::CanvasResize { payload, .. } => payload.serialized_size(),
-            Message::LayerAttributes { payload, .. } => payload.serialized_size(),
-            Message::LayerRetitle { payload, .. } => payload.serialized_size(),
-            Message::PutImage { payload, .. } => payload.serialized_size(),
-            Message::FillRect { payload, .. } => payload.serialized_size(),
-            Message::PenUp { payload, .. } => payload.serialized_size(),
-            Message::AnnotationCreate { payload, .. } => payload.serialized_size(),
-            Message::AnnotationReshape { payload, .. } => payload.serialized_size(),
-            Message::AnnotationEdit { payload, .. } => payload.serialized_size(),
-            Message::AnnotationDelete { payload, .. } => payload.serialized_size(),
-            Message::PutTile { payload, .. } => payload.serialized_size(),
-            Message::CanvasBackground { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsClassic { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsPixel { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsPixelSquare { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsMyPaint { payload, .. } => payload.serialized_size(),
-            Message::DrawDabsMyPaintBlend { payload, .. } => payload.serialized_size(),
-            Message::MoveRect { payload, .. } => payload.serialized_size(),
-            Message::SetMetadataInt { payload, .. } => payload.serialized_size(),
-            Message::LayerTreeCreate { payload, .. } => payload.serialized_size(),
-            Message::LayerTreeMove { payload, .. } => payload.serialized_size(),
-            Message::LayerTreeDelete { payload, .. } => payload.serialized_size(),
-            Message::TransformRegion { payload, .. } => payload.serialized_size(),
-            Message::TrackCreate { payload, .. } => payload.serialized_size(),
-            Message::TrackRetitle { payload, .. } => payload.serialized_size(),
-            Message::TrackDelete { payload, .. } => payload.serialized_size(),
-            Message::TrackOrder { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameSet { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameRetitle { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameLayerAttributes { payload, .. } => payload.serialized_size(),
-            Message::KeyFrameDelete { payload, .. } => payload.serialized_size(),
-            Message::SelectionPut { payload, .. } => payload.serialized_size(),
-            Message::SelectionClear { payload, .. } => payload.serialized_size(),
-            Message::LocalMatch { payload, .. } => payload.serialized_size(),
-            Message::SyncSelectionTile { payload, .. } => payload.serialized_size(),
-            Message::PutImageZstd { payload, .. } => payload.serialized_size(),
-            Message::PutTileZstd { payload, .. } => payload.serialized_size(),
-            Message::CanvasBackgroundZstd { payload, .. } => payload.serialized_size(),
-            Message::MoveRectZstd { payload, .. } => payload.serialized_size(),
-            Message::TransformRegionZstd { payload, .. } => payload.serialized_size(),
-            Message::Undo { payload, .. } => payload.serialized_size(),
+        1 + match self {
+            Message::Servercommand(msg) => msg.serialized_size(),
+            Message::Disconnect(msg) => msg.serialized_size(),
+            Message::Ping(msg) => msg.serialized_size(),
+            Message::Keepalive(msg) => msg.serialized_size(),
+            Message::Thumbnail(msg) => msg.serialized_size(),
+            Message::Join(msg) => msg.serialized_size(),
+            Message::Leave(msg) => msg.serialized_size(),
+            Message::Sessionowner(msg) => msg.serialized_size(),
+            Message::Chat(msg) => msg.serialized_size(),
+            Message::Trustedusers(msg) => msg.serialized_size(),
+            Message::Softreset(msg) => msg.serialized_size(),
+            Message::Privatechat(msg) => msg.serialized_size(),
+            Message::Resetstream(msg) => msg.serialized_size(),
+            Message::Interval(msg) => msg.serialized_size(),
+            Message::Lasertrail(msg) => msg.serialized_size(),
+            Message::Movepointer(msg) => msg.serialized_size(),
+            Message::Useracl(msg) => msg.serialized_size(),
+            Message::Layeracl(msg) => msg.serialized_size(),
+            Message::Featureaccesslevels(msg) => msg.serialized_size(),
+            Message::Defaultlayer(msg) => msg.serialized_size(),
+            Message::Undodepth(msg) => msg.serialized_size(),
+            Message::Data(msg) => msg.serialized_size(),
+            Message::Localchange(msg) => msg.serialized_size(),
+            Message::Featurelimits(msg) => msg.serialized_size(),
+            Message::Undopoint(msg) => msg.serialized_size(),
+            Message::Canvasresize(msg) => msg.serialized_size(),
+            Message::Layerattributes(msg) => msg.serialized_size(),
+            Message::Layerretitle(msg) => msg.serialized_size(),
+            Message::Putimage(msg) => msg.serialized_size(),
+            Message::Fillrect(msg) => msg.serialized_size(),
+            Message::Penup(msg) => msg.serialized_size(),
+            Message::Annotationcreate(msg) => msg.serialized_size(),
+            Message::Annotationreshape(msg) => msg.serialized_size(),
+            Message::Annotationedit(msg) => msg.serialized_size(),
+            Message::Annotationdelete(msg) => msg.serialized_size(),
+            Message::Puttile(msg) => msg.serialized_size(),
+            Message::Canvasbackground(msg) => msg.serialized_size(),
+            Message::Drawdabsclassic(msg) => msg.serialized_size(),
+            Message::Drawdabspixel(msg) => msg.serialized_size(),
+            Message::Drawdabsmypaint(msg) => msg.serialized_size(),
+            Message::Drawdabsmypaintblend(msg) => msg.serialized_size(),
+            Message::Moverect(msg) => msg.serialized_size(),
+            Message::Setmetadataint(msg) => msg.serialized_size(),
+            Message::Layertreecreate(msg) => msg.serialized_size(),
+            Message::Layertreemove(msg) => msg.serialized_size(),
+            Message::Layertreedelete(msg) => msg.serialized_size(),
+            Message::Transformregion(msg) => msg.serialized_size(),
+            Message::Trackcreate(msg) => msg.serialized_size(),
+            Message::Trackretitle(msg) => msg.serialized_size(),
+            Message::Trackdelete(msg) => msg.serialized_size(),
+            Message::Trackorder(msg) => msg.serialized_size(),
+            Message::Keyframeset(msg) => msg.serialized_size(),
+            Message::Keyframeretitle(msg) => msg.serialized_size(),
+            Message::Keyframelayerattributes(msg) => msg.serialized_size(),
+            Message::Keyframedelete(msg) => msg.serialized_size(),
+            Message::Selectionput(msg) => msg.serialized_size(),
+            Message::Selectionclear(msg) => msg.serialized_size(),
+            Message::Localmatch(msg) => msg.serialized_size(),
+            Message::Syncselectiontile(msg) => msg.serialized_size(),
+            Message::Undo(msg) => msg.serialized_size(),
         }
     }
 }
