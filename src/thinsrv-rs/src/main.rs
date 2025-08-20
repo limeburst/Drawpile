@@ -175,7 +175,7 @@ async fn handle_client_connection(
     greeting.serialize(&mut buffer)?;
 
     socket.write_all(&buffer).await?;
-    println!("Sent greeting: {:?}", greeting);
+    println!("> {:?}", greeting);
 
     loop {
         // Read DpMessage.length, and then read the rest of the message
@@ -201,9 +201,8 @@ async fn handle_client_connection(
         full_message.extend_from_slice(&user_id_buf);
         full_message.extend_from_slice(&message_buf);
 
-        println!("Full message: {:?}", full_message);
         let message = Message::deserialize(&mut Cursor::new(full_message))?;
-        println!("Received message: {:?}", message);
+        println!("< {:?}", message);
 
         if message.message_type() == MessageType::PING {
             let pong = Ping { is_pong: true };
@@ -215,7 +214,7 @@ async fn handle_client_connection(
             let mut buffer = Vec::new();
             reply.serialize(&mut buffer)?;
             socket.write_all(&buffer).await?;
-
+            println!("> {:?}", reply);
             continue;
         }
 
@@ -247,6 +246,7 @@ async fn handle_client_connection(
                     let mut buffer = Vec::new();
                     reply.serialize(&mut buffer)?;
                     socket.write_all(&buffer).await?;
+                    println!("> {:?}", reply);
                 }
                 "lookup" => {
                     let response = json!({
@@ -267,6 +267,7 @@ async fn handle_client_connection(
                     let mut buffer = Vec::new();
                     reply.serialize(&mut buffer)?;
                     socket.write_all(&buffer).await?;
+                    println!("> {:?}", reply);
                 }
                 "ident" => {
                     use serde_json::json;
@@ -339,6 +340,7 @@ async fn handle_client_connection(
                         let mut buffer = Vec::new();
                         reply.serialize(&mut buffer)?;
                         socket.write_all(&buffer).await?;
+                        println!("> {:?}", reply);
                     }
                 }
 
@@ -428,6 +430,7 @@ async fn handle_client_connection(
                     let mut buffer = Vec::new();
                     server_command_reply.serialize(&mut buffer)?;
                     socket.write_all(&buffer).await?;
+                    println!("> {:?}", server_command_reply);
 
                     // Send join message
                     let join_payload = protogen::Join {
@@ -440,13 +443,10 @@ async fn handle_client_connection(
                         user_id,
                         payload: join_payload,
                     };
-                    println!("SENT > {:?}", reply);
-
                     let mut buffer = Vec::new();
                     reply.serialize(&mut buffer)?;
-                    // print buffer
-                    println!("SENT > {:?}", buffer);
                     socket.write_all(&buffer).await?;
+                    println!("> {:?}", reply);
                 }
                 _ => {
                     println!("Unknown command: {}", server_command.cmd);
