@@ -1,4 +1,3 @@
-use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io::Cursor;
@@ -6,10 +5,12 @@ use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
+pub mod login;
 pub mod protogen;
 pub mod servercmd;
 
-use protogen::{Message, ServerCommand};
+use login::{ClientState, create_login_greeting, handle_login_command};
+use protogen::Message;
 use servercmd::ServerCommand as ServerCommandParser;
 
 use crate::protogen::{MessageType, Ping};
@@ -24,15 +25,6 @@ use crate::protogen::{MessageType, Ping};
 // 7. wait for user to finish typing join password if needed
 // 8. send host/join command
 // 9. wait for OK
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LoginState {
-    WaitForSecure,
-    WaitForClientInfo,
-    WaitForLookup,
-    WaitForIdent,
-    WaitForLogin,
-    Ignore,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ServerReplyType {
@@ -113,47 +105,6 @@ impl ServerReplyType {
     }
 }
 
-#[derive(Debug)]
-struct ClientState {
-    state: LoginState,
-    username: Option<String>,
-    client_info: Option<Value>,
-    lookup: Option<String>,
-}
-
-impl ClientState {
-    fn new() -> Self {
-        Self {
-            state: LoginState::WaitForIdent,
-            username: None,
-            client_info: None,
-            lookup: None,
-        }
-    }
-}
-
-fn create_login_greeting() -> Message {
-    let server_cmd = ServerCommand {
-        msg: json!({
-            "type": ServerReplyType::Login.as_str(),
-            "message": "Drawpile server 2.3.0-beta.2-10-g009197990-dirty",
-            "version": 4,
-            "flags": ["MULTI", "AVATAR", "MBANIMPEX", "LOOKUP", "CINFO"],
-            "methods": {
-                "guest": {
-                    "actions": ["join", "host"]
-                }
-            }
-        })
-        .to_string(),
-    };
-
-    Message::ServerCommand {
-        user_id: 0,
-        payload: server_cmd,
-    }
-}
-
 pub struct Session {
     pub id: String,
     pub history: SessionHistory,
@@ -226,232 +177,14 @@ async fn handle_client_connection(
         {
             let server_command = ServerCommandParser::from_payload(payload.msg.as_bytes())?;
 
-            match server_command.cmd.as_str() {
-                "cinfo" => {
-                    let response = json!({
-                        "cinfo": { "browser": false },
-                        "message": "Client info OK!",
-                        "type": "result"
-                    });
-
-                    let response_bytes = response.to_string().into_bytes();
-                    let server_cmd = ServerCommand {
-                        msg: String::from_utf8(response_bytes)?,
-                    };
-                    let reply = Message::ServerCommand {
-                        user_id,
-                        payload: server_cmd,
-                    };
-
-                    let mut buffer = Vec::new();
-                    reply.serialize(&mut buffer)?;
-                    socket.write_all(&buffer).await?;
-                    println!("> {:?}", reply);
-                }
-                "lookup" => {
-                    let response = json!({
-                        "lookup": "host",
-                        "message": "Host lookup OK!",
-                        "type": "result"
-                    });
-
-                    let response_bytes = response.to_string().into_bytes();
-                    let server_cmd = ServerCommand {
-                        msg: String::from_utf8(response_bytes)?,
-                    };
-                    let reply = Message::ServerCommand {
-                        user_id,
-                        payload: server_cmd,
-                    };
-
-                    let mut buffer = Vec::new();
-                    reply.serialize(&mut buffer)?;
-                    socket.write_all(&buffer).await?;
-                    println!("> {:?}", reply);
-                }
-                "ident" => {
-                    use serde_json::json;
-
-                    let response = json!({
-                        "flags": ["WEB", "WEBSESSION", "WEBHOST", "HOST"],
-                        "guest": true,
-                        "ident": "limeburst",
-                        "message": "Guest login OK!",
-                        "state": "identOk",
-                        "type": "result"
-                    });
-
-                    let response_bytes = response.to_string().into_bytes();
-                    let server_cmd = ServerCommand {
-                        msg: String::from_utf8(response_bytes)?,
-                    };
-                    let reply = Message::ServerCommand {
-                        user_id,
-                        payload: server_cmd,
-                    };
-
-                    let mut buffer = Vec::new();
-                    reply.serialize(&mut buffer)?;
-                    socket.write_all(&buffer).await?;
-
-                    {
-                        let response = json!({
-                            "message": "Welcome",
-                            "sessions": sessions
-                                .lock()
-                                .unwrap()
-                                .values()
-                                .map(|session| {
-                                    json!({
-                                        "activeDrawingUserCount": 0,
-                                        "alias": "",
-                                        "authOnly": false,
-                                        "autotitle": false,
-                                        "closed": false,
-                                        "founder": "limeburst",
-                                        "hasPassword": false,
-                                        "id": session.id,
-                                        "idleOverride": false,
-                                        "invites": false,
-                                        "maxUserCount": 254,
-                                        "nsfm": false,
-                                        "persistent": false,
-                                        "protocol": "dp:4.25.1",
-                                        "size": 372,
-                                        "startTime": "2025-08-14T13:41:15Z",
-                                        "title": "",
-                                        "unlisted": false,
-                                        "userCount": 0
-                                    })
-                                })
-                                .collect::<Vec<Value>>(),
-                            "type": "login"
-                        });
-
-                        let response_bytes = response.to_string().into_bytes();
-                        let server_cmd = ServerCommand {
-                            msg: String::from_utf8(response_bytes)?,
-                        };
-                        let reply = Message::ServerCommand {
-                            user_id,
-                            payload: server_cmd,
-                        };
-
-                        let mut buffer = Vec::new();
-                        reply.serialize(&mut buffer)?;
-                        socket.write_all(&buffer).await?;
-                        println!("> {:?}", reply);
-                    }
-                }
-
-                "host" => {
-                    // let response = serde_json::json!({
-                    //     "message": "New session",
-                    //     "sessions": [{
-                    //         "activeDrawingUserCount": 0,
-                    //         "alias": "",
-                    //         "authOnly": false,
-                    //         "autotitle": false,
-                    //         "closed": false,
-                    //         "founder": "limeburst",
-                    //         "hasPassword": false,
-                    //         "id": ulid::Ulid::new().to_string(),
-                    //         "idleOverride": false,
-                    //         "invites": false,
-                    //         "maxUserCount": 254,
-                    //         "nsfm": false,
-                    //         "persistent": false,
-                    //         "protocol": "dp:4.25.1",
-                    //         "size": 372,
-                    //         "startTime": "2025-08-14T13:41:15Z",
-                    //         "title": "",
-                    //         "unlisted": false,
-                    //         "userCount": 0
-                    //     }],
-                    //     "type": "login"
-                    // });
-
-                    // let response_bytes = response.to_string().into_bytes();
-                    // let reply = DpMessage::new(
-                    //     DpMessageType::ServerCommand,
-                    //     message.user_id,
-                    //     response_bytes,
-                    // );
-                    // socket.write_all(&reply.serialize()).await?;
-
-                    // Log the session creation
-                    // let log_response = serde_json::json!({
-                    //     "level": "Info",
-                    //     "message": "Session  created by limeburst",
-                    //     "timestamp": "2025-08-14T13:41:15Z",
-                    //     "topic": "Status",
-                    //     "type": "log"
-                    // });
-
-                    // let log_response_bytes = log_response.to_string().into_bytes();
-                    // let log_reply = DpMessage::new(
-                    //     DpMessageType::ServerCommand,
-                    //     message.user_id,
-                    //     log_response_bytes,
-                    // );
-                    // socket.write_all(&log_reply.serialize()).await?;
-
-                    // Send result
-                    let session_id = ulid::Ulid::new().to_string();
-                    sessions.lock().unwrap().insert(
-                        session_id.clone(),
-                        Session {
-                            id: session_id.clone(),
-                            history: SessionHistory { size_in_bytes: 0 },
-                        },
-                    );
-
-                    let server_command_response = serde_json::json!({
-                        "join": {
-                            "authId": "",
-                            "flags": [],
-                            "id": session_id,
-                            "user": 1
-                        },
-                        "message": "Starting new session!",
-                        "state": "host",
-                        "type": "result"
-                    });
-
-                    let server_command_bytes = server_command_response.to_string().into_bytes();
-                    let server_cmd = ServerCommand {
-                        msg: String::from_utf8(server_command_bytes)?,
-                    };
-                    let server_command_reply = Message::ServerCommand {
-                        user_id,
-                        payload: server_cmd,
-                    };
-
-                    let mut buffer = Vec::new();
-                    server_command_reply.serialize(&mut buffer)?;
-                    socket.write_all(&buffer).await?;
-                    println!("> {:?}", server_command_reply);
-
-                    // Send join message
-                    let join_payload = protogen::Join {
-                        flags: 0,
-                        name: "limeburst".to_string(),
-                        avatar: Vec::new(),
-                    };
-
-                    let reply = Message::Join {
-                        user_id,
-                        payload: join_payload,
-                    };
-                    let mut buffer = Vec::new();
-                    reply.serialize(&mut buffer)?;
-                    socket.write_all(&buffer).await?;
-                    println!("> {:?}", reply);
-                }
-                _ => {
-                    println!("Unknown command: {}", server_command.cmd);
-                }
-            }
+            handle_login_command(
+                &server_command.cmd,
+                user_id,
+                &mut socket,
+                sessions.clone(),
+                &server_command,
+            )
+            .await?;
         }
     }
 }
